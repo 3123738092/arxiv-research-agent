@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Author Record",
+  "description": "A single author in the dimension table.",
+  "type": "object",
+  "required": ["author_id", "name"],
+  "properties": {
+    "author_id": { "type": "string" },
+    "name": { "type": "string" },
+    "s2_author_id": { "type": "string" },
+    "affiliation_ids": { "type": "array", "items": { "type": "string" } },
+    "paper_ids": { "type": "array", "items": { "type": "string" } }
+  }
+}

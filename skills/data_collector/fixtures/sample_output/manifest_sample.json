@@ -1,0 +1,25 @@
+{
+  "run_id": "abc12345",
+  "timestamp": "2026-05-05T00:00:00",
+  "params": {
+    "categories": ["cs.CL"],
+    "keywords": ["agent"],
+    "date_range": {"start": "2026-05-04", "end": "2026-05-04"}
+  },
+  "source_status": {
+    "arxiv": "ok",
+    "semantic_scholar": "ok",
+    "embeddings": "ok"
+  },
+  "counts": {
+    "fetched": 10,
+    "after_dedup": 8,
+    "with_s2_data": 6,
+    "citation_edges": 42,
+    "coauthorship_edges": 15,
+    "authors": 24
+  },
+  "errors": [],
+  "warnings": ["No results for 2026-05-03 (attempt 2/4)"],
+  "elapsed_seconds": 12.5
+}

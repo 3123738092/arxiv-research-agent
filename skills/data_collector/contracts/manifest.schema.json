@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Manifest Record",
+  "description": "Run metadata output by each pipeline execution.",
+  "type": "object",
+  "required": ["run_id", "timestamp", "params", "counts"],
+  "properties": {
+    "run_id": { "type": "string" },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "params": { "type": "object" },
+    "source_status": {
+      "type": "object",
+      "properties": {
+        "arxiv": { "type": "string", "enum": ["ok", "empty", "error"] },
+        "semantic_scholar": { "type": "string", "enum": ["ok", "partial", "error", "skipped"] },
+        "embeddings": { "type": "string", "enum": ["ok", "skipped", "error"] }
+      }
+    },
+    "counts": {
+      "type": "object",
+      "properties": {
+        "fetched": { "type": "integer", "minimum": 0 },
+        "after_dedup": { "type": "integer", "minimum": 0 },
+        "with_s2_data": { "type": "integer", "minimum": 0 },
+        "citation_edges": { "type": "integer", "minimum": 0 },
+        "coauthorship_edges": { "type": "integer", "minimum": 0 },
+        "authors": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "errors": { "type": "array", "items": { "type": "string" } },
+    "warnings": { "type": "array", "items": { "type": "string" } },
+    "elapsed_seconds": { "type": "number", "minimum": 0 }
+  }
+}

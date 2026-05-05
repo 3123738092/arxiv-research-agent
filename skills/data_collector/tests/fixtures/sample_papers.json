@@ -1,0 +1,42 @@
+[
+  {
+    "arxiv_id": "2301.00001",
+    "arxiv_id_versioned": "2301.00001v2",
+    "title": "Test Paper A: Agent-Based Systems",
+    "abstract": "Investigates agent-based systems for social network analysis.",
+    "authors_raw": ["Alice Smith", "Bob Jones"],
+    "published": "2026-05-04T00:00:00",
+    "arxiv_url": "https://arxiv.org/abs/2301.00001v2",
+    "pdf_url": "https://arxiv.org/pdf/2301.00001v2",
+    "categories": ["cs.CL", "cs.AI"],
+    "primary_category": "cs.CL",
+    "comment": "8 pages",
+    "source": "arxiv"
+  },
+  {
+    "arxiv_id": "2301.00001",
+    "arxiv_id_versioned": "2301.00001v1",
+    "title": "Test Paper A: Agent-Based Systems",
+    "abstract": "This is the v1 version.",
+    "authors_raw": ["Alice Smith", "Bob Jones"],
+    "published": "2026-05-03T00:00:00",
+    "arxiv_url": "https://arxiv.org/abs/2301.00001v1",
+    "pdf_url": "https://arxiv.org/pdf/2301.00001v1",
+    "categories": ["cs.CL"],
+    "primary_category": "cs.CL",
+    "source": "arxiv"
+  },
+  {
+    "arxiv_id": "2301.00002",
+    "arxiv_id_versioned": "2301.00002v1",
+    "title": "Test Paper B: Graph Neural Networks",
+    "abstract": "GNN for link prediction in citation networks.",
+    "authors_raw": ["Carol Wang", "Alice Smith"],
+    "published": "2026-05-04T00:00:00",
+    "arxiv_url": "https://arxiv.org/abs/2301.00002v1",
+    "pdf_url": "https://arxiv.org/pdf/2301.00002v1",
+    "categories": ["cs.LG"],
+    "primary_category": "cs.LG",
+    "source": "arxiv"
+  }
+]

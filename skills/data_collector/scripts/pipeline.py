@@ -72,6 +72,8 @@ def run_pipeline(config):
 
     # Stage 5: Build graph edges
     edges = build_all_edges(papers, authors_list, citations_edges)
+    papers = edges.pop("papers", papers)
+    authors_list = edges.pop("authors_list", authors_list)
 
     # Stage 6: Compute embeddings
     vecs, embed_index, embed_warnings = embed_papers(papers)
@@ -108,9 +110,11 @@ def run_pipeline(config):
         "counts": {
             "fetched": fetch_count,
             "after_dedup": dedup_stats["output_count"],
-            "with_s2_data": sum(1 for p in validated["papers"] if p.get("citation_count") is not None),
+            "with_s2_data": sum(1 for p in validated["papers"] if p.get("s2_paper_id")),
             "citation_edges": len(validated["edges"]["citations"]),
+            "citation_edges_external": len(validated["edges"].get("citations_external", [])),
             "coauthorship_edges": len(validated["edges"]["coauthorship"]),
+            "author_paper_edges": len(validated["edges"]["author_paper"]),
             "authors": len(validated["authors"]),
             "embeddings_dim": vecs.shape[1] if vecs.size else 0,
         },

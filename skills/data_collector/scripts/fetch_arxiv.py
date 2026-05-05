@@ -1,15 +1,20 @@
 """Stage 2: Fetch papers from arXiv API with auto-backtrack and weekend detection."""
 
+import time
 import arxiv
 from datetime import datetime, timedelta
-from tenacity import retry, stop_after_attempt, wait_exponential
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 from .utils import normalize_arxiv_id, is_weekend, weekend_window
 
 
-@retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=2, min=4, max=60))
+@retry(
+    stop=stop_after_attempt(5),
+    wait=wait_exponential(multiplier=3, min=10, max=120),
+    retry=retry_if_exception_type(arxiv.HTTPError),
+)
 def _search_arxiv(query, max_results=100):
     """Execute a single arXiv search with retry logic."""
-    client = arxiv.Client(page_size=min(max_results, 100), delay_seconds=3)
+    client = arxiv.Client(page_size=min(max_results, 30), delay_seconds=10)
     search = arxiv.Search(
         query=query,
         max_results=max_results,
@@ -62,23 +67,41 @@ def fetch_arxiv_papers(categories, keywords, date_start, date_end, max_results=2
         attempt_date = (
             datetime.fromisoformat(effective_date) - timedelta(days=attempt)
         ).strftime("%Y-%m-%d")
-        search_query = f"{query} AND submittedDate:[{attempt_date} TO {attempt_date}]"
+        search_query = query  # date filtering done client-side after fetch
 
         try:
             results = _search_arxiv(search_query, max_results)
         except Exception as e:
+            # On rate limit, pause before next backtrack attempt
+            if hasattr(e, 'status') and e.status == 429:
+                time.sleep(30)
             warnings.append(f"arXiv API error on {attempt_date}: {e}")
             continue
 
         if results:
-            papers = results
-            search_date = attempt_date
-            if attempt > 0:
+            # Client-side date filter: use attempt_date as lower bound so
+            # backtracked days aren't blocked by the original date_start.
+            filter_start_dt = datetime.fromisoformat(attempt_date)
+            filter_end_dt = datetime.fromisoformat(date_end)
+            filtered = []
+            for r in results:
+                pub_date = r.published.date() if r.published else None
+                if pub_date and filter_start_dt.date() <= pub_date <= filter_end_dt.date():
+                    filtered.append(r)
+            if filtered:
+                papers = filtered
+                search_date = attempt_date
+                if attempt > 0:
+                    warnings.append(
+                        f"No results for {effective_date}, backtracked to {attempt_date} "
+                        f"(found {len(filtered)} papers)"
+                    )
+                break
+            else:
                 warnings.append(
-                    f"No results for {effective_date}, backtracked to {attempt_date} "
-                    f"(found {len(results)} papers)"
+                    f"No results in date range for {attempt_date}: "
+                    f"API returned {len(results)}, 0 in [{attempt_date}, {date_end}]"
                 )
-            break
         else:
             warnings.append(f"No results for {attempt_date} (attempt {attempt + 1}/{backtrack_days + 1})")
 

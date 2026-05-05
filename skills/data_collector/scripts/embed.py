@@ -17,13 +17,8 @@ MODEL_NAME = "all-MiniLM-L6-v2"
 
 def load_model():
     """Lazy-load the sentence-transformers model."""
-    try:
-        from sentence_transformers import SentenceTransformer
-        return SentenceTransformer(MODEL_NAME)
-    except ImportError:
-        raise ImportError(
-            "sentence-transformers not installed. Run: pip install sentence-transformers"
-        )
+    from sentence_transformers import SentenceTransformer
+    return SentenceTransformer(MODEL_NAME)
 
 
 def compute_embeddings(papers, model=None):
@@ -65,14 +60,15 @@ def embed_papers(papers):
         (vecs, index, warnings)
     """
     warnings = []
+    if not papers:
+        warnings.append("Embedding skipped: no papers")
+        return np.empty((0, 384), dtype=np.float32), {}, warnings
     try:
         model = load_model()
         vecs, index = compute_embeddings(papers, model)
         save_embeddings(vecs, index)
         return vecs, index, warnings
-    except ImportError as e:
-        warnings.append(f"Embedding skipped: {e}")
-        return np.empty((0, 384), dtype=np.float32), {}, warnings
     except Exception as e:
-        warnings.append(f"Embedding error: {e}")
+        name = type(e).__name__
+        warnings.append(f"Embedding skipped [{name}]: {e}")
         return np.empty((0, 384), dtype=np.float32), {}, warnings

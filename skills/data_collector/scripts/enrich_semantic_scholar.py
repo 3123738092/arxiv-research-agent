@@ -2,6 +2,7 @@
 
 Fetches references, citation counts, and author IDs for each paper.
 Free tier: 1 req/s without key, 100 req/s with API key.
+Gracefully handles papers not yet indexed in S2.
 """
 
 import os
@@ -19,6 +20,9 @@ FIELDS = (
     "publicationVenue,openAccessPdf"
 )
 
+_NO_KEY_DELAY = 3.5   # free tier: 1 req/s, be extra safe
+_HAS_KEY_DELAY = 0.05  # with key: 100 req/s
+
 
 def _s2_headers():
     key = os.environ.get("SEMANTIC_SCHOLAR_API_KEY", "")
@@ -28,59 +32,88 @@ def _s2_headers():
     return h
 
 
-@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=30))
-def _s2_post(url, json_data):
-    resp = requests.post(url, json=json_data, headers=_s2_headers(), timeout=30)
+def _has_api_key():
+    return bool(os.environ.get("SEMANTIC_SCHOLAR_API_KEY", ""))
+
+
+@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=2, min=5, max=60))
+def _s2_post(url, json_data, params=None):
+    resp = requests.post(url, json=json_data, params=params, headers=_s2_headers(), timeout=30)
+    if resp.status_code == 429:
+        retry_after = int(resp.headers.get("Retry-After", 60))
+        time.sleep(retry_after)
+        resp = requests.post(url, json=json_data, params=params, headers=_s2_headers(), timeout=30)
     resp.raise_for_status()
     return resp.json()
 
 
-def _s2_get(url, params=None):
-    resp = requests.get(url, params=params, headers=_s2_headers(), timeout=30)
-    resp.raise_for_status()
-    return resp.json()
-
-
-def find_papers_by_arxiv_ids(arxiv_ids, batch_size=500, delay=1.0):
+def find_papers_by_arxiv_ids(arxiv_ids, batch_size=500, delay=None):
     """Batch-lookup papers on Semantic Scholar.
 
     Args:
         arxiv_ids: list of arxiv IDs (without version suffix)
         batch_size: max 500 per request
-        delay: seconds between batches (1s for free tier)
+        delay: seconds between batches (auto-detected from API key presence)
 
     Returns:
         dict: {arxiv_id: paper_data} for found papers
     """
+    if delay is None:
+        delay = _HAS_KEY_DELAY if _has_api_key() else _NO_KEY_DELAY
+
     result = {}
-    for i in range(0, len(arxiv_ids), batch_size):
+    not_found = []
+    api_errors = []
+    total = len(arxiv_ids)
+
+    for i in range(0, total, batch_size):
         batch = arxiv_ids[i : i + batch_size]
+        # S2 expects "ArXiv:" prefix
         ids_payload = [f"ArXiv:{aid}" for aid in batch]
+
         try:
-            data = _s2_post(S2_BATCH_URL, {"ids": ids_payload, "fields": FIELDS})
+            data = _s2_post(S2_BATCH_URL, {"ids": ids_payload}, params={"fields": FIELDS})
+        except requests.HTTPError as e:
+            code = e.response.status_code if hasattr(e, 'response') else 0
+            if code == 400:
+                # "No valid paper ids given" — papers not indexed yet
+                not_found.extend(batch)
+            else:
+                api_errors.append(f"HTTP {code}: {e}")
+            continue
         except Exception as e:
-            print(f"  [S2 batch error] offset={i}: {e}")
+            api_errors.append(str(e))
             continue
 
-        for item in (data or []):
+        for idx, item in enumerate(data or []):
+            aid = batch[idx] if idx < len(batch) else None
             if item is None:
-                continue
-            parsed = _parse_s2_paper(item)
-            if parsed:
-                aid = parsed.get("arxiv_id")
                 if aid:
-                    result[aid] = parsed
+                    not_found.append(aid)
+                continue
+            parsed = _parse_s2_paper(item, aid)
+            if parsed and parsed.get("arxiv_id"):
+                result[parsed["arxiv_id"]] = parsed
+
         if i + batch_size < len(arxiv_ids):
             time.sleep(delay)
+
+    if not_found:
+        n = len(not_found)
+        print(f"  [S2] {n}/{total} papers not yet indexed (too recent)")
+
     return result
 
 
-def _parse_s2_paper(item):
+def _parse_s2_paper(item, fallback_arxiv_id=None):
     """Parse a Semantic Scholar paper object into our standard format."""
     if not item:
         return None
+
     external_ids = item.get("externalIds") or {}
     arxiv_id = external_ids.get("ArXiv")
+    if not arxiv_id:
+        arxiv_id = fallback_arxiv_id
     if not arxiv_id:
         return None
 
@@ -116,13 +149,7 @@ def _parse_s2_paper(item):
 
 
 def build_enrichment_map(s2_results, papers):
-    """Merge S2 enrichment data with arXiv papers.
-
-    Returns:
-        enriched_papers: papers list with s2 fields added
-        citations_edges: list of {from, to} for citation graph
-        authors_dim: dict of {author_key: author_data}
-    """
+    """Merge S2 enrichment data with arXiv papers."""
     enriched = []
     citations_edges = []
     authors_dim = {}
@@ -169,11 +196,7 @@ def build_enrichment_map(s2_results, papers):
 
 
 def enrich_papers(papers):
-    """Main entry point: enrich a list of arXiv papers with S2 data.
-
-    Returns:
-        (enriched_papers, citations_edges, authors_list, warnings)
-    """
+    """Main entry point: enrich a list of arXiv papers with S2 data."""
     arxiv_ids = [p["arxiv_id"] for p in papers]
     warnings = []
 

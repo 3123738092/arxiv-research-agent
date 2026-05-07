@@ -1,0 +1,9 @@
+{
+  "categories": ["cs.CL"],
+  "keywords": ["agent", "skill", "tool use"],
+  "date_range": {"start": "2026-05-04", "end": "2026-05-04"},
+  "max_results": 10,
+  "backtrack_days": 3,
+  "negative_keywords": [],
+  "sources": ["arxiv"]
+}

@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Paper Record",
+  "description": "A single paper in the data center fact table.",
+  "type": "object",
+  "required": ["arxiv_id", "title", "source"],
+  "properties": {
+    "arxiv_id": {
+      "type": "string",
+      "pattern": "^\\d{4}\\.\\d{4,5}$"
+    },
+    "arxiv_id_versioned": { "type": "string" },
+    "title": { "type": "string", "minLength": 1 },
+    "abstract": { "type": "string" },
+    "authors_raw": { "type": "array", "items": { "type": "string" } },
+    "author_ids": { "type": "array", "items": { "type": "string" } },
+    "published": { "type": "string", "format": "date-time" },
+    "updated": { "type": "string", "format": "date-time" },
+    "arxiv_url": { "type": "string", "format": "uri" },
+    "pdf_url": { "type": "string", "format": "uri" },
+    "categories": { "type": "array", "items": { "type": "string" } },
+    "primary_category": { "type": "string" },
+    "comment": { "type": "string" },
+    "journal_ref": { "type": "string" },
+    "doi": { "type": "string" },
+    "source": { "type": "string", "enum": ["arxiv", "huggingface", "paperswithcode", "openalex"] },
+    "s2_paper_id": { "type": "string" },
+    "citation_count": { "type": "integer", "minimum": 0 },
+    "reference_count": { "type": "integer", "minimum": 0 },
+    "year": { "type": "integer" },
+    "venue": { "type": "object" },
+    "open_access_pdf": { "type": "string", "format": "uri" },
+    "embedding_row": { "type": "integer", "minimum": 0 },
+    "code_url": { "type": "string", "format": "uri" }
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Edge Tables",
+  "description": "Graph edge files for downstream SNA Skills.",
+  "type": "object",
+  "properties": {
+    "citations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["from", "to"],
+        "properties": {
+          "from": { "type": "string" },
+          "to": { "type": "string" }
+        }
+      }
+    },
+    "coauthorship": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["author_a", "author_b", "weight"],
+        "properties": {
+          "author_a": { "type": "string" },
+          "author_b": { "type": "string" },
+          "weight": { "type": "integer", "minimum": 1 }
+        }
+      }
+    },
+    "author_paper": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["author_id", "paper_id"],
+        "properties": {
+          "author_id": { "type": "string" },
+          "paper_id": { "type": "string" }
+        }
+      }
+    }
+  }
+}

@@ -1,22 +1,10 @@
 ---
 name: data_collector
-description: >
-  Fetch daily arXiv papers by category and keyword, enrich with Semantic Scholar
-  (references, citation counts, author IDs), deduplicate, pre-compute embeddings,
-  and output a structured data center for downstream SNA Skills (PageRank,
-  community detection, visualization, report generation).
+description: "抓取、收集和查找 arXiv 论文的核心能力。当用户请求搜索/抓取论文时（例如\"今天cs.CL分类里关于agent的文章\"、\"抓取XX方向的论文\"、\"查找论文\"、\"今日新论文\"），必须调用此 skill，禁止自行使用 WebSearch 或 WebFetch 代替。支持按分类(cs.CL/cs.LG等)和关键词筛选，自动 enriched with Semantic Scholar (references, citation counts, author IDs), deduplicate, pre-compute embeddings。"
 version: 1.0.0
 author: Han
+agent_created: true
 tags: [arxiv, paper, data-collection, research, social-network-analysis]
-trigger_keywords:
-  - fetch papers
-  - arXiv
-  - daily briefing
-  - 抓取论文
-  - 今日论文
-  - 最新论文
-  - paper collection
-  - research briefing
 metadata:
   openclaw:
     requires:
@@ -25,11 +13,12 @@ metadata:
       env: []
     primaryEnv: SEMANTIC_SCHOLAR_API_KEY
     envVars:
+      - name: WORKBUDDY_SHARED_DATA
+        required: true
+        note: "Absolute path to the current workspace's shared_data/ directory. Must be set at runtime — without it, output is written to ~/.workbuddy/shared_data/ instead of the workspace. Example: C:/Users/31237/WorkBuddy/20260505170223/shared_data"
       - name: SEMANTIC_SCHOLAR_API_KEY
         required: false
-        description: >
-          Semantic Scholar API key for higher rate limits (100 req/s with key
-          vs 1 req/s without). Free tier at semanticscholar.org.
+        note: "Semantic Scholar API key for higher rate limits (100 req/s with key vs 1 req/s without). Free tier at semanticscholar.org."
 ---
 
 # Data Collector Skill — arXiv Research Briefing Agent
@@ -90,6 +79,15 @@ Python scripts — do NOT use LLM for data processing. The LLM's role is limited
 ---
 
 ## Core Functions & Execution Order
+
+> **WARNING: Required env var**: Always set `WORKBUDDY_SHARED_DATA` to the current workspace's
+> `shared_data/` directory before running. Without it, output files will be written to
+> `~/.workbuddy/shared_data/` instead of the workspace — silent data loss.
+>
+> ```bash
+> export WORKBUDDY_SHARED_DATA="/path/to/workspace/shared_data"
+> # Windows (git bash): export WORKBUDDY_SHARED_DATA="C:/Users/.../shared_data"
+> ```
 
 Run `python -m skills.data_collector.scripts.pipeline` with a JSON config file.
 
@@ -202,7 +200,7 @@ never call data_collector scripts directly.
 
 ### Example 1: Daily fetch for a single topic
 
-**User says**: "帮我抓今天 cs.CL 分类里关于 agent 的论文"
+**User says**: "帮我抓今天 cs.CL 关于 agent 的论文"
 
 **LLM parses to config**:
 ```json
@@ -238,7 +236,7 @@ never call data_collector scripts directly.
 
 **User says**: "I'm working on LoRA fine-tuning, fetch relevant papers from today"
 
-**LLM expands keywords**: "LoRA" → `["LoRA", "low-rank adaptation", "PEFT", "adapter tuning", "parameter-efficient fine-tuning"]`
+**LLM expands keywords**: "LoRA" → ["LoRA", "low-rank adaptation", "PEFT", "adapter tuning", "parameter-efficient fine-tuning"]
 
 Then passes the expanded list to the pipeline config.
 
@@ -270,10 +268,15 @@ the agent should read them **on demand** when it needs specific information:
 # Install dependencies
 pip install arxiv tenacity pydantic sentence-transformers requests numpy
 
+# Required: set workspace shared_data path
+export WORKBUDDY_SHARED_DATA="/absolute/path/to/workspace/shared_data"
+# Windows (bash): export WORKBUDDY_SHARED_DATA="C:/Users/31237/WorkBuddy/20260505170223/shared_data"
+
 # Optional: Semantic Scholar API key for higher rate limits
 # export SEMANTIC_SCHOLAR_API_KEY=your_key_here
 
-# Run pipeline with sample config
-python -m skills.data_collector.scripts.pipeline \
-  --config fixtures/sample_config.json
+# Run pipeline with config
+WORKBUDDY_SHARED_DATA="C:/Users/31237/WorkBuddy/20260505170223/shared_data" \
+  python -m skills.data_collector.scripts.pipeline \
+  --config /path/to/shared_data/config.json
 ```

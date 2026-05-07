@@ -6,9 +6,9 @@ import hashlib
 from pathlib import Path
 from datetime import datetime, timedelta
 
-_WORKSPACE_SHARED = os.environ.get("WORKBUDDY_SHARED_DATA")
-if _WORKSPACE_SHARED:
-    SHARED_DATA = Path(_WORKSPACE_SHARED)          # 优先用环境变量
+_WORKBUDDY_SHARED = os.environ.get("WORKBUDDY_SHARED_DATA")
+if _WORKBUDDY_SHARED:
+    SHARED_DATA = Path(_WORKBUDDY_SHARED)        # 优先用环境变量
 else:
     SHARED_DATA = Path(__file__).resolve().parents[3] / "shared_data"  # 兜底
     

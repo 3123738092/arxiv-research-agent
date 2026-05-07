@@ -36,6 +36,7 @@ def derive_authors_from_raw(papers):
 
         new_p = dict(p)
         new_p["author_ids"] = author_ids
+        new_p.setdefault("affiliation_ids", [])
         updated_papers.append(new_p)
 
     for a in authors_list:

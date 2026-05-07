@@ -1,4 +1,4 @@
-"""Shared utilities for the data-collector skill."""
+"""Shared utilities for the data_collector skill."""
 
 import json
 import os
@@ -6,7 +6,12 @@ import hashlib
 from pathlib import Path
 from datetime import datetime, timedelta
 
-SHARED_DATA = Path(__file__).resolve().parents[3] / "shared_data"
+_WORKSPACE_SHARED = os.environ.get("WORKBUDDY_SHARED_DATA")
+if _WORKSPACE_SHARED:
+    SHARED_DATA = Path(_WORKSPACE_SHARED)          # 优先用环境变量
+else:
+    SHARED_DATA = Path(__file__).resolve().parents[3] / "shared_data"  # 兜底
+    
 CONTRACTS = Path(__file__).resolve().parents[1] / "contracts"
 LAST_FETCH_FILE = SHARED_DATA / "last_fetch.json"
 

@@ -1,7 +1,7 @@
-"""Stage 1 + Orchestrator: Main pipeline entry point for data-collector.
+"""Stage 1 + Orchestrator: Main pipeline entry point for data_collector.
 
 Usage:
-    python -m skills.data-collector.scripts.pipeline --config config.json
+    python -m skills.data_collector.scripts.pipeline --config config.json
 
 Config JSON keys:
     categories, keywords, date_range {start, end}, max_results, backtrack_days,
@@ -25,7 +25,7 @@ from .validate import validate_all
 
 
 def run_pipeline(config):
-    """Execute the full data-collector pipeline.
+    """Execute the full data_collector pipeline.
 
     Args:
         config: dict with keys: categories, keywords, date_range, etc.
@@ -67,7 +67,7 @@ def run_pipeline(config):
     warnings.append(f"Dedup: {dedup_stats}")
 
     # Stage 4: Enrich via Semantic Scholar
-    papers, citations_edges, authors_list, enrich_warnings = enrich_papers(papers)
+    papers, citations_edges, authors_list, affiliations_list, enrich_warnings = enrich_papers(papers)
     warnings.extend(enrich_warnings)
 
     # Stage 5: Build graph edges
@@ -81,7 +81,7 @@ def run_pipeline(config):
 
     # Stage 7: Validate
     validated, validation_errors = validate_all(
-        papers, authors_list, [], edges
+        papers, authors_list, affiliations_list, edges
     )
     if validation_errors:
         errors.extend(validation_errors)
@@ -116,6 +116,7 @@ def run_pipeline(config):
             "coauthorship_edges": len(validated["edges"]["coauthorship"]),
             "author_paper_edges": len(validated["edges"]["author_paper"]),
             "authors": len(validated["authors"]),
+            "affiliations": len(validated["affiliations"]),
             "embeddings_dim": vecs.shape[1] if vecs.size else 0,
         },
         "errors": errors,

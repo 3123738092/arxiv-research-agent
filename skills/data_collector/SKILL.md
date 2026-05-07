@@ -1,5 +1,5 @@
 ---
-name: data-collector
+name: data_collector
 description: >
   Fetch daily arXiv papers by category and keyword, enrich with Semantic Scholar
   (references, citation counts, author IDs), deduplicate, pre-compute embeddings,
@@ -166,7 +166,7 @@ shared_data/
 ```
 
 All JSON schemas are in `contracts/`. Downstream Skills MUST read from these files —
-never call data-collector scripts directly.
+never call data_collector scripts directly.
 
 ---
 

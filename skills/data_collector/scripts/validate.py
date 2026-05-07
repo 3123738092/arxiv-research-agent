@@ -28,6 +28,7 @@ class PaperRecord(BaseModel):
     abstract: Optional[str] = None
     authors_raw: List[str] = []
     author_ids: List[str] = []
+    affiliation_ids: List[str] = []
     published: Optional[str] = None
     updated: Optional[str] = None
     arxiv_url: Optional[str] = None

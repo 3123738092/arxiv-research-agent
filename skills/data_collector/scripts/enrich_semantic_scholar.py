@@ -15,8 +15,8 @@ S2_BATCH_URL = f"{S2_API}/paper/batch"
 S2_PAPER_URL = f"{S2_API}/paper"
 
 FIELDS = (
-    "title,authors,year,externalIds,citationCount,referenceCount,"
-    "references.paperId,references.title,references.externalIds,"
+    "title,authors.affiliations,authors.name,year,externalIds,citationCount,"
+    "referenceCount,references.paperId,references.title,references.externalIds,"
     "publicationVenue,openAccessPdf"
 )
 
@@ -119,9 +119,11 @@ def _parse_s2_paper(item, fallback_arxiv_id=None):
 
     authors = []
     for a in item.get("authors") or []:
+        affiliations = a.get("affiliations") or []
         authors.append({
             "name": a.get("name", ""),
             "s2_author_id": a.get("authorId"),
+            "affiliations": affiliations,
         })
 
     references = []
@@ -150,15 +152,19 @@ def _parse_s2_paper(item, fallback_arxiv_id=None):
 
 def build_enrichment_map(s2_results, papers):
     """Merge S2 enrichment data with arXiv papers."""
+    import hashlib
+
     enriched = []
     citations_edges = []
     authors_dim = {}
+    affiliations_dim = {}
 
     for p in papers:
         aid = p.get("arxiv_id", "")
         s2 = s2_results.get(aid, {})
 
         author_ids_for_paper = []
+        affiliation_ids_for_paper = []
         for a in s2.get("authors", []):
             a_name = a.get("name", "")
             if not a_name:
@@ -169,8 +175,26 @@ def build_enrichment_map(s2_results, papers):
                     "author_id": author_key,
                     "name": a_name,
                     "s2_author_id": a.get("s2_author_id"),
+                    "affiliation_ids": [],
                     "paper_ids": [],
                 }
+
+            # Collect affiliations for this author
+            for aff_name in a.get("affiliations") or []:
+                if not aff_name:
+                    continue
+                aff_id = "aff_" + hashlib.md5(aff_name.encode()).hexdigest()[:8]
+                if aff_id not in affiliations_dim:
+                    affiliations_dim[aff_id] = {
+                        "affiliation_id": aff_id,
+                        "name": aff_name,
+                        "country": None,
+                    }
+                if aff_id not in authors_dim[author_key]["affiliation_ids"]:
+                    authors_dim[author_key]["affiliation_ids"].append(aff_id)
+                if aff_id not in affiliation_ids_for_paper:
+                    affiliation_ids_for_paper.append(aff_id)
+
             authors_dim[author_key]["paper_ids"].append(aid)
             author_ids_for_paper.append(author_key)
 
@@ -188,20 +212,25 @@ def build_enrichment_map(s2_results, papers):
             "venue": s2.get("venue"),
             "open_access_pdf": s2.get("open_access_pdf"),
             "author_ids": author_ids_for_paper,
+            "affiliation_ids": affiliation_ids_for_paper,
             "embedding_row": None,
         })
         enriched.append(ep)
 
-    return enriched, citations_edges, list(authors_dim.values())
+    return enriched, citations_edges, list(authors_dim.values()), list(affiliations_dim.values())
 
 
 def enrich_papers(papers):
-    """Main entry point: enrich a list of arXiv papers with S2 data."""
+    """Main entry point: enrich a list of arXiv papers with S2 data.
+
+    Returns:
+        (enriched_papers, citations_edges, authors_list, affiliations_list, warnings)
+    """
     arxiv_ids = [p["arxiv_id"] for p in papers]
     warnings = []
 
     if not arxiv_ids:
-        return papers, [], [], warnings
+        return papers, [], [], [], warnings
 
     try:
         s2_results = find_papers_by_arxiv_ids(arxiv_ids)
@@ -210,7 +239,7 @@ def enrich_papers(papers):
             warnings.append(f"S2 found {found}/{len(arxiv_ids)} papers")
     except Exception as e:
         warnings.append(f"Semantic Scholar API unavailable: {e}")
-        return papers, [], [], warnings
+        return papers, [], [], [], warnings
 
-    enriched, edges, authors = build_enrichment_map(s2_results, papers)
-    return enriched, edges, authors, warnings
+    enriched, edges, authors, affiliations = build_enrichment_map(s2_results, papers)
+    return enriched, edges, authors, affiliations, warnings

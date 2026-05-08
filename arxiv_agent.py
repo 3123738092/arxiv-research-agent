@@ -57,16 +57,27 @@ def run_skill1_fetch(categories, keywords, date_start=None, date_end=None,
 
 
 # --------------------------------------------------------------------------
-# Skill stubs (Skills 2-5) — placeholders until team implements them
+# Skill 2 (implemented) + Skill stubs (Skills 3-5)
 # --------------------------------------------------------------------------
 
-def run_skill2_rank():
-    """Stub: Skill 2 — PageRank + interest scoring."""
-    from shared.loader import load_citation_edges, load_papers, SkillInputMissingError
+def run_skill2_rank(user_interest=""):
+    """Skill 2 — PageRank + interest scoring."""
+    from skills.paper_ranker.rank import rank_papers, save_rankings, save_ranked_papers, SkillInputMissingError
     try:
-        papers = load_papers(data_dir=SHARED_DATA)
-        edges = load_citation_edges(data_dir=SHARED_DATA)
-        print(f"[Skill 2] Ready to rank {len(papers)} papers with {len(edges)} citation edges")
+        rankings = rank_papers(
+            user_interest=user_interest, data_dir=SHARED_DATA,
+        )
+        path1 = save_rankings(rankings, data_dir=SHARED_DATA)
+        path2 = save_ranked_papers(rankings, data_dir=SHARED_DATA)
+        print(f"[Skill 2] Ranked {len(rankings)} papers")
+        print(f"  summary   → {path1}")
+        print(f"  augmented → {path2}")
+        for r in rankings[:5]:
+            title = r.get("title", "")[:80]
+            print(f"  #{r['rank']:2d} | PR={r['pagerank_score']:.6f} "
+                  f"interest={r['interest_score']:.1f} "
+                  f"novelty={r['novelty_score']:.1f} "
+                  f"→ {r['score']:.1f} | {title}")
     except SkillInputMissingError as e:
         print(f"[Skill 2] Skipped — data not available: {e}")
 
@@ -131,8 +142,9 @@ def run_daily_pipeline(categories=None, keywords=None, date_start=None, date_end
         print("[SKIP] No papers collected — nothing to do for downstream skills")
         return 0
 
-    print("\n[2/5] Paper Ranker (PageRank + interest scoring)")
-    run_skill2_rank()
+    user_interest = " ".join(keywords) if keywords else ""
+    print(f"\n[2/5] Paper Ranker (PageRank + interest: \"{user_interest}\")")
+    run_skill2_rank(user_interest=user_interest)
 
     print("\n[3/5] Community Detector (co-authorship clustering)")
     run_skill3_community()
@@ -160,7 +172,8 @@ def check_status():
     for f in ["papers.json", "authors.json", "affiliations.json",
               "edges/citations.json", "edges/coauthorship.json",
               "edges/author_paper.json", "embeddings/paper_vecs.npy",
-              "manifest.json", "raw_papers.json"]:
+              "manifest.json", "raw_papers.json",
+              "rankings.json", "ranked_papers.json"]:
         exists = (SHARED_DATA / f).exists()
         print(f"  {'[x]' if exists else '[ ]'} {f}")
 
@@ -199,6 +212,10 @@ def main():
     fetch_p.add_argument("--backtrack-days", type=int, default=3)
     fetch_p.add_argument("--negative-keywords", nargs="*")
 
+    rank_p = sub.add_parser("rank", help="Run Skill 2 only (PageRank + interest)")
+    rank_p.add_argument("--interest", type=str, default="",
+                        help="User research interest text")
+
     sub.add_parser("status", help="Check shared_data/ state")
 
     args = parser.parse_args()
@@ -220,6 +237,9 @@ def main():
             backtrack_days=args.backtrack_days,
             negative_keywords=args.negative_keywords,
         )
+        return 0
+    elif args.command == "rank":
+        run_skill2_rank(user_interest=args.interest)
         return 0
     elif args.command == "status":
         check_status()

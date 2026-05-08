@@ -1,0 +1,50 @@
+[
+  {
+    "arxiv_id": "2301.00001",
+    "arxiv_id_versioned": "2301.00001v1",
+    "title": "Tool-Augmented LLM Agents: A Comprehensive Survey",
+    "abstract": "This paper provides a comprehensive survey of tool-augmented LLM agents, covering architectures, tool use paradigms, safety considerations, and future directions. We systematically review 200+ papers and organize them into a taxonomy.",
+    "authors_raw": ["Alice Smith", "Bob Chen"],
+    "author_ids": ["a_alice01", "a_bob02"],
+    "categories": ["cs.CL", "cs.AI"],
+    "primary_category": "cs.CL",
+    "citation_count": 15,
+    "reference_count": 42,
+    "published": "2023-01-15T00:00:00Z",
+    "arxiv_url": "https://arxiv.org/abs/2301.00001",
+    "embedding_row": 0,
+    "source": "arxiv"
+  },
+  {
+    "arxiv_id": "2301.00002",
+    "arxiv_id_versioned": "2301.00002v1",
+    "title": "Graph Neural Networks for Social Network Analysis",
+    "abstract": "We propose a novel graph neural network architecture for social network analysis tasks including influence detection, community discovery, and link prediction. Our model outperforms baselines on six benchmark datasets.",
+    "authors_raw": ["Bob Chen", "Charlie Wang"],
+    "author_ids": ["a_bob02", "a_charlie03"],
+    "categories": ["cs.SI", "cs.LG"],
+    "primary_category": "cs.SI",
+    "citation_count": 8,
+    "reference_count": 35,
+    "published": "2023-01-15T00:00:00Z",
+    "arxiv_url": "https://arxiv.org/abs/2301.00002",
+    "embedding_row": 1,
+    "source": "arxiv"
+  },
+  {
+    "arxiv_id": "2301.00003",
+    "arxiv_id_versioned": "2301.00003v1",
+    "title": "PageRank Variants: From Web to Citation Networks",
+    "abstract": "This survey reviews PageRank variants tailored for citation networks. We analyze the impact of time-decay, author weighting, and heterogeneous graphs on ranking performance for academic paper recommendation systems.",
+    "authors_raw": ["Charlie Wang", "Alice Smith"],
+    "author_ids": ["a_charlie03", "a_alice01"],
+    "categories": ["cs.IR", "cs.DL"],
+    "primary_category": "cs.IR",
+    "citation_count": 3,
+    "reference_count": 28,
+    "published": "2023-01-15T00:00:00Z",
+    "arxiv_url": "https://arxiv.org/abs/2301.00003",
+    "embedding_row": 2,
+    "source": "arxiv"
+  }
+]

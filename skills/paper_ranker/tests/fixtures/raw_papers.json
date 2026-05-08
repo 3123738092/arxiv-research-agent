@@ -1,0 +1,38 @@
+[
+  {
+    "arxiv_id": "2301.00001",
+    "title": "Tool-Augmented LLM Agents: A Comprehensive Survey",
+    "abstract": "This paper provides a comprehensive survey of tool-augmented LLM agents.",
+    "authors": ["Alice Smith", "Bob Chen"],
+    "published": "2023-01-15T00:00:00Z",
+    "arxiv_url": "https://arxiv.org/abs/2301.00001",
+    "pdf_url": "https://arxiv.org/pdf/2301.00001",
+    "categories": ["cs.CL", "cs.AI"],
+    "primary_category": "cs.CL",
+    "citation_count": 15
+  },
+  {
+    "arxiv_id": "2301.00002",
+    "title": "Graph Neural Networks for Social Network Analysis",
+    "abstract": "We propose a novel graph neural network for social network analysis.",
+    "authors": ["Bob Chen", "Charlie Wang"],
+    "published": "2023-01-15T00:00:00Z",
+    "arxiv_url": "https://arxiv.org/abs/2301.00002",
+    "pdf_url": "https://arxiv.org/pdf/2301.00002",
+    "categories": ["cs.SI", "cs.LG"],
+    "primary_category": "cs.SI",
+    "citation_count": 8
+  },
+  {
+    "arxiv_id": "2301.00003",
+    "title": "PageRank Variants: From Web to Citation Networks",
+    "abstract": "This survey reviews PageRank variants tailored for citation networks.",
+    "authors": ["Charlie Wang", "Alice Smith"],
+    "published": "2023-01-15T00:00:00Z",
+    "arxiv_url": "https://arxiv.org/abs/2301.00003",
+    "pdf_url": "https://arxiv.org/pdf/2301.00003",
+    "categories": ["cs.IR", "cs.DL"],
+    "primary_category": "cs.IR",
+    "citation_count": 3
+  }
+]

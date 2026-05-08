@@ -18,6 +18,11 @@ pipeline:
 
 Daily arXiv ingestion, ranking, host-LLM summarization, dashboard visualization, and report generation.
 
+> **Entry point for natural-language invocation:** [`SKILL.md`](./SKILL.md) at repo root.
+> The host LLM (Claude Code / WorkBuddy / OpenClaw) matches the user's request against
+> the root `SKILL.md` frontmatter, then follows its 7-step recipe to drive the 5 sub-skills.
+> AGENTS.md (this file) is the **registry-facing manifest**; the runtime entry point is `SKILL.md`.
+
 ## Skill Inventory
 
 | # | Skill | Directory | Purpose |

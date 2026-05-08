@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Paper Topic Exploration Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #f5f6fa; color: #2d3436; }
+.header { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); color: #fff; padding: 20px 32px; }
+.header h1 { font-size: 22px; font-weight: 600; }
+.header .subtitle { font-size: 13px; opacity: .65; margin-top: 4px; }
+
+/* Overview cards */
+.overview { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; padding: 20px 32px; }
+.ov-card { background: #fff; border-radius: 10px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,.06); text-align: center; }
+.ov-card .value { font-size: 28px; font-weight: 700; color: #1a1a2e; }
+.ov-card .label { font-size: 12px; color: #888; margin-top: 4px; }
+
+/* Main layout */
+.main { display: flex; gap: 16px; padding: 0 32px 24px; height: calc(100vh - 210px); min-height: 560px; }
+.panel-left { flex: 1; background: #fff; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,.06); overflow: hidden; }
+.panel-right { width: 380px; display: flex; flex-direction: column; gap: 16px; overflow-y: auto; }
+
+/* Keyword network panel */
+.network-header { padding: 14px 20px; font-size: 14px; font-weight: 600; border-bottom: 1px solid #eee; }
+#network-chart { flex: 1; min-height: 400px; }
+
+/* Detail panel */
+.detail-card { background: #fff; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,.06); padding: 20px; }
+.detail-card h3 { font-size: 16px; margin-bottom: 12px; color: #1a1a2e; }
+.detail-card .keyword-name { display: inline-block; background: #6c5ce7; color: #fff; padding: 4px 12px; border-radius: 20px; font-size: 14px; margin-bottom: 12px; }
+.detail-stats { display: flex; gap: 16px; margin-bottom: 12px; }
+.detail-stats .stat { text-align: center; }
+.detail-stats .stat .num { font-size: 20px; font-weight: 700; color: #6c5ce7; }
+.detail-stats .stat .tag { font-size: 11px; color: #888; }
+.related-kws { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.related-kws .kw-tag { background: #eee; padding: 3px 10px; border-radius: 12px; font-size: 12px; cursor: pointer; transition: background .2s; }
+.related-kws .kw-tag:hover { background: #6c5ce7; color: #fff; }
+#trend-chart { width: 100%; height: 180px; }
+
+/* Linked papers */
+.papers-card { background: #fff; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,.06); padding: 20px; }
+.papers-card h3 { font-size: 16px; margin-bottom: 12px; color: #1a1a2e; }
+.paper-item { border: 1px solid #eee; border-radius: 8px; padding: 14px; margin-bottom: 10px; transition: border-color .2s; }
+.paper-item:hover { border-color: #6c5ce7; }
+.paper-item .p-title { font-size: 14px; font-weight: 600; color: #1a1a2e; margin-bottom: 4px; cursor: pointer; }
+.paper-item .p-title:hover { color: #6c5ce7; }
+.paper-item .p-summary { font-size: 12px; color: #666; line-height: 1.5; margin-bottom: 8px; }
+.paper-item .p-meta { display: flex; gap: 8px; align-items: center; }
+.paper-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 500; }
+.badge-rec { background: #e8f5e9; color: #2e7d32; }
+.badge-rel { background: #e3f2fd; color: #1565c0; }
+.badge-nov { background: #fff3e0; color: #e65100; }
+.p-btn { display: inline-block; padding: 3px 10px; border-radius: 4px; font-size: 11px; text-decoration: none; cursor: pointer; border: none; }
+.btn-arxiv { background: #b10606; color: #fff; }
+.btn-notion { background: #f5f5f5; color: #333; }
+
+/* Placeholder state */
+.placeholder { color: #999; font-size: 13px; text-align: center; padding: 40px 0; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Topic Exploration Dashboard</h1>
+  <div class="subtitle">点击关键词网络中的节点，探索主题关系和论文推荐</div>
+</div>
+
+<div class="overview">
+  <div class="ov-card"><div class="value" id="ov-total">-</div><div class="label">论文总数</div></div>
+  <div class="ov-card"><div class="value" id="ov-keyword">-</div><div class="label">最热关键词</div></div>
+  <div class="ov-card"><div class="value" id="ov-community">-</div><div class="label">最活跃社区 / 分类</div></div>
+  <div class="ov-card"><div class="value" id="ov-quality">-</div><div class="label">高推荐论文 (≥7)</div></div>
+</div>
+
+<div class="main">
+  <div class="panel-left">
+    <div class="network-header">关键词共现网络 | Keyword Co-occurrence Network</div>
+    <div id="network-chart"></div>
+  </div>
+  <div class="panel-right">
+    <div class="detail-card" id="detail-panel">
+      <h3>主题详情 | Topic Detail</h3>
+      <div class="placeholder" id="detail-placeholder">← 点击左侧网络中的关键词节点查看详情</div>
+      <div id="detail-content" style="display:none;">
+        <div class="keyword-name" id="detail-kw-name"></div>
+        <div class="detail-stats">
+          <div class="stat"><div class="num" id="detail-kw-count">0</div><div class="tag">相关论文</div></div>
+          <div class="stat"><div class="num" id="detail-kw-freq">0</div><div class="tag">出现频次</div></div>
+        </div>
+        <div style="font-size:12px;color:#888;margin-bottom:6px;">关联关键词</div>
+        <div class="related-kws" id="detail-related"></div>
+        <div style="font-size:12px;color:#888;margin-bottom:6px;">话题趋势 | Topic Presence</div>
+        <div id="trend-chart"></div>
+      </div>
+    </div>
+    <div class="papers-card" id="papers-panel">
+      <h3>推荐论文 | Linked Papers</h3>
+      <div class="placeholder" id="papers-placeholder">← 点击关键词查看相关论文</div>
+      <div id="papers-content"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══ 数据（由 Python 端注入） ═══
+const PAPERS = [{"abstract": "Large language models (LLMs) are increasingly used as interactive agents, but optimizing them for long-horizon decision making remains difficult because current methods are largely purely reactive, which weakens both exploration and credit assignment over extended trajectories. In this work, we present Strategic Trajectory Abstraction (StraTA), a simple framework that introduces an explicit trajectory-level strategy into agentic reinforcement learning (RL). StraTA samples a compact strategy from the initial task state, conditions subsequent actions on that strategy, and trains strategy generation and action execution jointly with a hierarchical GRPO-style rollout design, further enhanced by diverse strategy rollout and critical self-judgment. Experiments on ALFWorld, WebShop, and SciWorld show that StraTA consistently improves both sample efficiency and final performance over strong baselines. StraTA reaches success rates of 93.1% on ALFWorld and 84.2% on WebShop. On SciWorld, StraTA attains a 63.5% overall score, outperforming frontier closed-source models.", "authors": ["Xiangyuan Xue", "Yifan Zhou", "Zidong Wang", "Shengji Tang", "Philip Torr", "Wanli Ouyang", "Lei Bai", "Zhenfei Yin"], "category": "cs.CL", "community_label": "Unknown", "keywords": [], "novelty_score": 1.53, "one_line_summary": "", "paper_id": "2605.06642", "published_date": "2026-05-07", "recommendation_score": 4.1, "relevance_score": 5.83, "title": "StraTA: Incentivizing Agentic Reinforcement Learning with Strategic Trajectory Abstraction", "url": "http://arxiv.org/abs/2605.06642v1"}, {"abstract": "We introduce Recursive Agent Optimization (RAO), a reinforcement learning approach for training recursive agents: agents that can spawn and delegate sub-tasks to new instantiations of themselves recursively. Recursive agents implement an inference-time scaling algorithm that naturally allows agents to scale to longer contexts and generalize to more difficult problems via divide-and-conquer. RAO provides a method to train models to best take advantage of such recursive inference, teaching agents when and how to delegate and communicate. We find that recursive agents trained in this way enjoy better training efficiency, can scale to tasks that go beyond the model\u0027s context window, generalize to tasks much harder than the ones the agent was trained on, and can enjoy reduced wall-clock time compared to single-agent systems.", "authors": ["Apurva Gandhi", "Satyaki Chakraborty", "Xiangjun Wang", "Aviral Kumar", "Graham Neubig"], "category": "cs.LG", "community_label": "Unknown", "keywords": [], "novelty_score": 2.3, "one_line_summary": "", "paper_id": "2605.06639", "published_date": "2026-05-07", "recommendation_score": 4.1, "relevance_score": 5.25, "title": "Recursive Agent Optimization", "url": "http://arxiv.org/abs/2605.06639v1"}, {"abstract": "Large language models (LLMs) power deep research agents that synthesize information from hundreds of web sources into cited reports, yet these citations cannot be reliably verified. Current approaches either trust models to self-cite accurately, risking bias, or employ retrieval-augmented generation (RAG) that does not validate source accessibility, relevance, or factual consistency. We introduce the first source attribution evaluation framework that uses a reproducible AST parser to extract and evaluate inline citations from LLM-generated Markdown reports at scale. Unlike methods that verify claims in isolation, our framework closes the loop by retrieving the actual cited content, enabling human or model evaluators to judge each citation against its source. Citations are evaluated along three dimensions. (1) Link Works verifies URL accessibility, (2) Relevant Content measures topical alignment, and (3) Fact Check validates factual accuracy against source content. We benchmark 14 closed-source and open-source LLMs across three evaluation dimensions using rubric-based LLM-as-a-judge evaluators calibrated through human review. Our results reveal that even the strongest frontier models maintain link validity above 94% and relevance above 80%, yet achieve only 39-77% factual accuracy, while fewer than half of open-source models successfully generate cited reports in a one-shot setting. Ablation studies on research depth show that Fact Check accuracy drops by approximately 42% on average across two frontier models as tool calls scale from 2 to 150, demonstrating that more retrieval does not produce more accurate citations. These findings reveal a critical disconnect between surface-level citation quality and factual reliability, and our framework provides the evaluation infrastructure to assess the disconnect.", "authors": ["Hailey Onweller", "Elias Lumer", "Austin Huber", "Pia Ramchandani", "Vamse Kumar Subbiah", "Corey Feld"], "category": "cs.CL", "community_label": "Unknown", "keywords": [], "novelty_score": 3.13, "one_line_summary": "", "paper_id": "2605.06635", "published_date": "2026-05-07", "recommendation_score": 4.0, "relevance_score": 4.53, "title": "Cited but Not Verified: Parsing and Evaluating Source Attribution in LLM Deep Research Agents", "url": "http://arxiv.org/abs/2605.06635v1"}];
+const GRAPH_DATA = {"edges": [], "nodes": []};
+const OVERVIEW = {"community_count": 1, "high_quality_count": 0, "hottest_keyword": "N/A", "keyword_count": 0, "most_active_community": "Unknown", "total_papers": 3};
+const NOTION_MAP = {};
+const TRENDS = {};
+
+// ═══ Overview ═══
+document.getElementById('ov-total').textContent = OVERVIEW.total_papers;
+document.getElementById('ov-keyword').textContent = OVERVIEW.hottest_keyword || 'N/A';
+document.getElementById('ov-community').textContent = OVERVIEW.most_active_community || 'N/A';
+document.getElementById('ov-quality').textContent = OVERVIEW.high_quality_count;
+
+// ═══ Keyword Network ═══
+const networkDom = document.getElementById('network-chart');
+const networkChart = echarts.init(networkDom);
+window.addEventListener('resize', () => networkChart.resize());
+
+const maxFreq = Math.max(...GRAPH_DATA.nodes.map(n => n.value), 1);
+const nodes = GRAPH_DATA.nodes.map(n => ({
+  ...n,
+  symbolSize: 14 + (n.value / maxFreq) * 26,
+  label: { show: true, fontSize: 11 + (n.value / maxFreq) * 4 },
+}));
+
+networkChart.setOption({
+  tooltip: { formatter: (p) => p.dataType === 'node' ? `<b>${p.name}</b><br/>频次: ${p.value}` : `${p.data.source} ↔ ${p.data.target}` },
+  series: [{
+    type: 'graph', layout: 'force', roam: true, draggable: true,
+    force: { repulsion: 300, edgeLength: [80, 220], gravity: 0.12 },
+    data: nodes,
+    links: GRAPH_DATA.edges.map(e => ({ source: e.source, target: e.target, lineStyle: { width: Math.min(e.weight, 4), opacity: 0.4 } })),
+    emphasis: { focus: 'adjacency', lineStyle: { width: 4 } },
+  }],
+});
+
+// ═══ Click → Detail Panel + Papers ═══
+networkChart.on('click', function(params) {
+  if (params.dataType !== 'node') return;
+  selectKeyword(params.name);
+});
+
+function selectKeyword(keyword) {
+  // 显示 detail
+  document.getElementById('detail-placeholder').style.display = 'none';
+  document.getElementById('detail-content').style.display = 'block';
+  document.getElementById('detail-kw-name').textContent = keyword;
+
+  // 统计相关论文
+  const relatedPapers = PAPERS.filter(p => (p.keywords || []).includes(keyword));
+  document.getElementById('detail-kw-count').textContent = relatedPapers.length;
+
+  const freq = (GRAPH_DATA.nodes.find(n => n.name === keyword) || {}).value || 0;
+  document.getElementById('detail-kw-freq').textContent = freq;
+
+  // 关联关键词
+  const relatedKws = new Map();
+  relatedPapers.forEach(p => {
+    (p.keywords || []).forEach(kw => {
+      if (kw !== keyword) relatedKws.set(kw, (relatedKws.get(kw) || 0) + 1);
+    });
+  });
+  const sortedRelated = [...relatedKws.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8);
+  const relatedDiv = document.getElementById('detail-related');
+  relatedDiv.innerHTML = sortedRelated.map(([kw, c]) =>
+    `<span class="kw-tag" onclick="selectKeyword('${kw.replace(/'/g, "\\'")}')">${kw} (${c})</span>`
+  ).join('');
+
+  // 趋势图
+  renderTrend(keyword, relatedPapers);
+
+  // 推荐论文
+  document.getElementById('papers-placeholder').style.display = 'none';
+  const sorted = relatedPapers.sort((a, b) => (b.recommendation_score || 0) - (a.recommendation_score || 0));
+  const papersDiv = document.getElementById('papers-content');
+  papersDiv.innerHTML = sorted.slice(0, 10).map(p => {
+    const nUrl = NOTION_MAP[p.paper_id];
+    const rec = (p.recommendation_score || 0).toFixed(1);
+    return `<div class="paper-item">
+      <div class="p-title" onclick="window.open('${p.url}')">${p.title}</div>
+      <div class="p-summary">${p.one_line_summary || ''}</div>
+      <div class="p-meta">
+        <span class="paper-badge badge-rec">★ ${rec}</span>
+        <span class="paper-badge badge-rel">R ${p.relevance_score}</span>
+        <span class="paper-badge badge-nov">N ${p.novelty_score}</span>
+        <a class="p-btn btn-arxiv" href="${p.url}" target="_blank">arXiv</a>
+        ${nUrl ? `<a class="p-btn btn-notion" href="${nUrl}" target="_blank">Open in Notion</a>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ═══ Trend Chart ═══
+const trendDom = document.getElementById('trend-chart');
+const trendChart = echarts.init(trendDom);
+window.addEventListener('resize', () => trendChart.resize());
+
+function renderTrend(keyword, relatedPapers) {
+  // 有历史数据 → 折线图；否则 → 当前批次分布
+  if (TRENDS && TRENDS[keyword]) {
+    const data = TRENDS[keyword];
+    trendChart.setOption({
+      tooltip: { trigger: 'axis' },
+      xAxis: { type: 'category', data: data.dates, axisLabel: { fontSize: 10 } },
+      yAxis: { type: 'value', name: '论文数', nameTextStyle: { fontSize: 10 } },
+      series: [{ type: 'line', data: data.counts, smooth: true, symbol: 'circle', symbolSize: 4 }],
+      grid: { top: 20, right: 12, bottom: 20, left: 36 },
+    }, true);
+  } else {
+    // fallback：按月/按 community 分组
+    const groups = {};
+    relatedPapers.forEach(p => {
+      const key = p.category || p.community_label || 'Other';
+      groups[key] = (groups[key] || 0) + 1;
+    });
+    const entries = Object.entries(groups).sort((a, b) => b[1] - a[1]);
+    trendChart.setOption({
+      tooltip: {},
+      xAxis: { type: 'category', data: entries.map(e => e[0]), axisLabel: { fontSize: 9, rotate: 30 } },
+      yAxis: { type: 'value', name: '论文数' },
+      series: [{ type: 'bar', data: entries.map(e => e[1]), itemStyle: { color: '#6c5ce7', borderRadius: [4,4,0,0] } }],
+      grid: { top: 12, right: 12, bottom: 32, left: 36 },
+    }, true);
+  }
+}
+</script>
+
+</body>
+</html>

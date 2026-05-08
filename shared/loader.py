@@ -211,6 +211,16 @@ def load_raw_papers(data_dir: Optional[Path] = None) -> list:
 # State file
 # --------------------------------------------------------------------------
 
+def load_rankings(data_dir: Optional[Path] = None) -> Optional[list]:
+    """Return Skill 2 rankings if present: [{arxiv_id, pagerank_score, interest_score, rank}, ...]."""
+    return _load_json_optional("rankings.json", data_dir)
+
+
+def load_communities(data_dir: Optional[Path] = None) -> Optional[list]:
+    """Return Skill 3 communities if present: [{community_id, members, label, size}, ...]."""
+    return _load_json_optional("communities.json", data_dir)
+
+
 def load_last_fetch(data_dir: Optional[Path] = None) -> dict:
     """Return the last_fetch state: {seen_ids, last_fetch_time, params}."""
     result = _load_json_optional("last_fetch.json", data_dir)

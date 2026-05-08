@@ -82,12 +82,18 @@ def run_skill3_community():
 
 
 def run_skill4_report():
-    """Stub: Skill 4 — generate daily briefing report."""
-    from shared.loader import load_papers, load_manifest, SkillInputMissingError
+    """Skill 4 — generate daily briefing (Markdown + agent hook JSON)."""
+    import os
+
+    from shared.loader import SkillInputMissingError
+    from skills.briefing_report.generate import run_briefing_report
+
     try:
-        papers = load_papers(data_dir=SHARED_DATA)
-        manifest = load_manifest(data_dir=SHARED_DATA)
-        print(f"[Skill 4] Ready to generate briefing from {len(papers)} papers")
+        out = run_briefing_report(
+            data_dir=SHARED_DATA,
+            interest_query=os.environ.get("BRIEFING_INTEREST"),
+        )
+        print(f"[Skill 4] Wrote briefing → {out}")
     except SkillInputMissingError as e:
         print(f"[Skill 4] Skipped — data not available: {e}")
 

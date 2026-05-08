@@ -90,45 +90,57 @@ def run_skill2_rank(user_interest=""):
         print(f"[Skill 2] Skipped — data not available: {e}")
 
 
-def run_skill3_summarize(top_n=20, mode="abstract", language="en", model=None):
-    """Skill 3 — Claude-based paper summarization.
+def run_skill3_summarize(top_n=10, mode="abstract", language="en"):
+    """Skill 3 — prepare summarization request for the host LLM.
 
-    Reads ranked_papers.json (or papers.json fallback) and writes
-    summarized_papers.json. Skips gracefully when no Anthropic credentials
-    are configured.
+    Does NOT call any external API. Writes shared_data/summarize_request.json
+    so the host LLM (Claude in WorkBuddy / Claude Code) can perform the
+    summarization in its own conversation context, write
+    shared_data/summarized_papers.json, then run finalize-summary to validate.
     """
-    has_cred = bool(
-        os.environ.get("ANTHROPIC_API_KEY")
-        or os.environ.get("ANTHROPIC_AUTH_TOKEN")
-    )
-    if not has_cred:
-        print("[Skill 3] Skipped — set ANTHROPIC_API_KEY or ANTHROPIC_AUTH_TOKEN to enable summaries")
-        return None
-
     try:
-        from skills.paper_summarizer.scripts.pipeline import run_pipeline as run_summary
+        from skills.paper_summarizer.scripts.prepare import run as run_prepare
     except ImportError as e:
-        print(f"[Skill 3] Skipped — paper_summarizer not importable: {e}")
+        print(f"[Skill 3] Skipped — prepare script not importable: {e}")
         return None
 
-    config = {"top_n": top_n, "mode": mode, "language": language}
-    if model:
-        config["model"] = model
+    result = run_prepare(top_n=top_n, language=language, mode=mode, shared_data=SHARED_DATA)
+    if not result["ok"]:
+        print(f"[Skill 3] Skipped — {result.get('reason', 'unknown')}")
+        return result
+
+    req_path = result["request_path"]
+    n = result["papers_to_summarize"]
+    print(f"[Skill 3] Prepared request for {n} papers ({language}, {mode})")
+    print(f"  request   → {req_path}")
+    print(f"  next step → host LLM reads {req_path}, summarizes in-context,")
+    print(f"              writes shared_data/summarized_papers.json,")
+    print(f"              then run: python arxiv_agent.py finalize-summary")
+    return result
+
+
+def run_finalize_summary():
+    """Validate and normalize host-LLM summary output."""
     try:
-        manifest = run_summary(config=config)
-    except FileNotFoundError as e:
-        print(f"[Skill 3] Skipped — input not available: {e}")
+        from skills.paper_summarizer.scripts.finalize import run as run_finalize
+    except ImportError as e:
+        print(f"[Skill 3 finalize] Skipped — finalize script not importable: {e}")
         return None
-    except Exception as e:
-        print(f"[Skill 3] Failed: {type(e).__name__}: {e}")
-        return None
+
+    result = run_finalize(shared_data=SHARED_DATA)
+    if not result["ok"]:
+        print(f"[Skill 3 finalize] {result.get('reason', 'unknown')}")
+        return result
 
     print(
-        f"[Skill 3] Summarized {manifest['summarized_count']}/{manifest['count']} papers "
-        f"({manifest['mode']}, {manifest['language']}, {manifest['model']})"
+        f"[Skill 3 finalize] {result['summarized_count']}/{result['count']} papers "
+        f"have non-empty summaries (model={result['model']}, lang={result['language']})"
     )
-    print(f"  → {manifest['output_path']}")
-    return manifest
+    if result["missing"]:
+        print(f"  missing summaries for {len(result['missing'])} papers (showing up to 5):")
+        for m in result["missing"][:5]:
+            print(f"    - {m}")
+    return result
 
 
 def run_skill4_report():
@@ -283,7 +295,7 @@ def run_daily_pipeline(categories=None, keywords=None, date_start=None, date_end
     print(f"\n[2/5] Paper Ranker (PageRank + interest: \"{user_interest}\")")
     run_skill2_rank(user_interest=user_interest)
 
-    print("\n[3/5] Paper Summarizer (Claude one-liner + keywords)")
+    print("\n[3/5] Paper Summarizer (prepare request for host LLM)")
     run_skill3_summarize()
 
     print("\n[4/5] Visualizer (dashboard + Notion sync)")
@@ -311,8 +323,8 @@ def check_status():
               "edges/author_paper.json", "embeddings/paper_vecs.npy",
               "manifest.json", "raw_papers.json",
               "rankings.json", "ranked_papers.json",
-              "summarized_papers.json", "visualizer_input.json",
-              "briefing.md"]:
+              "summarize_request.json", "summarized_papers.json",
+              "visualizer_input.json", "briefing.md"]:
         exists = (SHARED_DATA / f).exists()
         print(f"  {'[x]' if exists else '[ ]'} {f}")
 
@@ -360,11 +372,18 @@ def main():
     rank_p.add_argument("--interest", type=str, default="",
                         help="User research interest text")
 
-    sum_p = sub.add_parser("summarize", help="Run Skill 3 only (paper summaries via Claude)")
-    sum_p.add_argument("--top-n", type=int, default=20)
+    sum_p = sub.add_parser(
+        "summarize",
+        help="Run Skill 3 prepare step (host LLM does the summarization itself)",
+    )
+    sum_p.add_argument("--top-n", type=int, default=10)
     sum_p.add_argument("--mode", choices=["abstract", "pdf"], default="abstract")
     sum_p.add_argument("--language", choices=["en", "zh"], default="en")
-    sum_p.add_argument("--model", type=str, default=None)
+
+    sub.add_parser(
+        "finalize-summary",
+        help="Validate + normalize summarized_papers.json written by the host LLM",
+    )
 
     viz_p = sub.add_parser("viz", help="Run Skill 5 only (dashboard + optional Notion sync)")
     viz_p.add_argument("--skip-notion", action="store_true")
@@ -397,9 +416,11 @@ def main():
         return 0
     elif args.command == "summarize":
         run_skill3_summarize(
-            top_n=args.top_n, mode=args.mode,
-            language=args.language, model=args.model,
+            top_n=args.top_n, mode=args.mode, language=args.language,
         )
+        return 0
+    elif args.command == "finalize-summary":
+        run_finalize_summary()
         return 0
     elif args.command == "viz":
         run_skill5_viz(skip_notion=args.skip_notion)

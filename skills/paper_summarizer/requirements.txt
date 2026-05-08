@@ -1,0 +1,7 @@
+anthropic>=0.40
+# Optional — only needed when running mode="pdf"
+pypdf>=4.0
+# Optional fallback for hard-to-parse PDFs
+pdfminer.six>=20231228
+# Dev
+pytest>=7.0

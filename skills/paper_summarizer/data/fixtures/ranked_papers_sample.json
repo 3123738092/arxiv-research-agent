@@ -1,0 +1,81 @@
+{
+  "count": 3,
+  "user_interest": "Research on embodied artificial intelligence systems that can physically interact with and manipulate objects in their environment through robotic platforms.",
+  "papers": [
+    {
+      "title": "AffordSim: A Scalable Data Generator and Benchmark for Affordance-Aware Robotic Manipulation",
+      "authors": [
+        "Mingyang Li",
+        "Haofan Xu",
+        "Haowen Sun",
+        "Xinzhe Chen",
+        "Sihua Ren",
+        "Liqi Huang",
+        "Xinyang Sui",
+        "Chenyang Miao",
+        "Qiongjie Cui",
+        "Zeyang Liu",
+        "Xingyu Chen",
+        "Xuguang Lan"
+      ],
+      "abstract": "Simulation-based data generation has become a dominant paradigm for training robotic manipulation policies, yet existing platforms do not incorporate object affordance information into trajectory generation. As a result, tasks requiring precise interaction with specific functional regions--grasping a mug by its handle, pouring from a cup's rim, or hanging a mug on a hook--cannot be automatically generated with semantically correct trajectories. We introduce AffordSim, the first simulation framework that integrates open-vocabulary 3D affordance prediction into the manipulation data generation pipeline. AffordSim uses our VoxAfford model, an open-vocabulary 3D affordance detector that enhances MLLM output tokens with multi-scale geometric features, to predict affordance maps on object point clouds, guiding grasp pose estimation toward task-relevant functional regions. Built on NVIDIA Isaac Sim with cross-embodiment support (Franka FR3, Panda, UR5e, Kinova), VLM-powered task generation, and novel domain randomization using DA3-based 3D Gaussian reconstruction from real photographs, AffordSim enables automated, scalable generation of affordance-aware manipulation data. We establish a benchmark of 50 tasks across 7 categories (grasping, placing, stacking, pushing/pulling, pouring, mug hanging, long-horizon composite) and evaluate 4 imitation learning baselines (BC, Diffusion Policy, ACT, Pi 0.5). Our results reveal that while grasping is largely solved (53-93% success), affordance-demanding tasks such as pouring into narrow containers (1-43%) and mug hanging (0-47%) remain significantly more challenging for current imitation learning methods, highlighting the need for affordance-aware data generation. Zero-shot sim-to-real experiments on a real Franka FR3 validate the transferability of the generated data.",
+      "published": "2026-04-13T16:21:44+00:00",
+      "updated": "2026-04-13T16:21:44+00:00",
+      "arxiv_url": "http://arxiv.org/abs/2604.11674v1",
+      "pdf_url": "https://arxiv.org/pdf/2604.11674v1",
+      "categories": [
+        "cs.RO",
+        "cs.AI"
+      ],
+      "primary_category": "cs.RO",
+      "comment": null,
+      "relevance_score": 10,
+      "novelty_score": 8,
+      "ranking_reason": "Specifically focuses on affordance-aware robotic manipulation with a scalable simulation platform, directly matching the research interest in physical object interaction."
+    },
+    {
+      "title": "3D-Anchored Lookahead Planning for Persistent Robotic Scene Memory via World-Model-Based MCTS",
+      "authors": [
+        "Bronislav Sidik",
+        "Dror Mizrahi"
+      ],
+      "abstract": "We present 3D-Anchored Lookahead Planning (3D-ALP), a System 2 reasoning engine for robotic manipulation that combines Monte Carlo Tree Search (MCTS) with a 3D-consistent world model as the rollout oracle. Unlike reactive policies that evaluate actions from the current camera frame only, 3D-ALP maintains a persistent camera-to-world (c2w) anchor that survives occlusion, enabling accurate replanning to object positions that are no longer directly observable. On a 5-step sequential reach task requiring spatial memory (Experiment E3), 3D-ALP achieves 0.650 0.109 success rate on memory-required steps versus 0.006 0.008 for a greedy reactive baseline (Δ=+0.645), while step 5 success reaches 0.822 against 0.000 for greedy. An ablation study (30 episodes, 3 seeds) isolates tree search spatial memory as the primary driver (+0.533, 82% of gain) with additional benefit from deeper lookahead (+0.111, 17%). We also identify and resolve four structural failure modes in applying UCT-MCTS (Upper Confidence Bounds applied to Trees [10]) to continuous robotic manipulation.",
+      "published": "2026-04-13T11:01:30+00:00",
+      "updated": "2026-04-13T11:01:30+00:00",
+      "arxiv_url": "http://arxiv.org/abs/2604.11302v1",
+      "pdf_url": "https://arxiv.org/pdf/2604.11302v1",
+      "categories": [
+        "cs.RO",
+        "cs.AI"
+      ],
+      "primary_category": "cs.RO",
+      "comment": "5 pages, 1 figure, 1 table",
+      "relevance_score": 9,
+      "novelty_score": 8,
+      "ranking_reason": "Introduces a sophisticated planning system for robotic manipulation with 3D world models and MCTS, offering novel approach to embodied AI reasoning."
+    },
+    {
+      "title": "Disentangled Point Diffusion for Precise Object Placement",
+      "authors": [
+        "Lyuxing He",
+        "Eric Cai",
+        "Shobhit Aggarwal",
+        "Jianjun Wang",
+        "David Held"
+      ],
+      "abstract": "Recent advances in robotic manipulation have highlighted the effectiveness of learning from demonstration. However, while end-to-end policies excel in expressivity and flexibility, they struggle both in generalizing to novel object geometries and in attaining a high degree of precision. An alternative, object-centric approach frames the task as predicting the placement pose of the target object, providing a modular decomposition of the problem. Building on this goal-prediction paradigm, we propose TAX-DPD, a hierarchical, disentangled point diffusion framework that achieves state-of-the-art performance in placement precision, multi-modal coverage, and generalization to variations in object geometries and scene configurations. We model global scene-level placements through a novel feed-forward Dense Gaussian Mixture Model (GMM) that yields a spatially dense prior over global placements; we then model the local object-level configuration through a novel disentangled point cloud diffusion module that separately diffuses the object geometry and the placement frame, enabling precise local geometric reasoning. Interestingly, we demonstrate that our point cloud diffusion achieves substantially higher accuracy than a prior approach based on SE(3)-diffusion, even in the context of rigid object placement. We validate our approach across a suite of challenging tasks in simulation and in the real-world on high-precision industrial insertion tasks. Furthermore, we present results on a cloth-hanging task in simulation, indicating that our framework can further relax assumptions on object rigidity.",
+      "published": "2026-04-13T17:55:47+00:00",
+      "updated": "2026-04-13T17:55:47+00:00",
+      "arxiv_url": "http://arxiv.org/abs/2604.11793v1",
+      "pdf_url": "https://arxiv.org/pdf/2604.11793v1",
+      "categories": [
+        "cs.RO"
+      ],
+      "primary_category": "cs.RO",
+      "comment": null,
+      "relevance_score": 9,
+      "novelty_score": 7,
+      "ranking_reason": "Directly addresses precise object manipulation in robotics with a novel diffusion-based approach for object placement, highly relevant to embodied AI manipulation tasks."
+    }
+  ]
+}

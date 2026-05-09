@@ -6,7 +6,7 @@ internals of the summarizer package.
 
 Reads input in priority order:
   1. ``shared_data/ranked_papers.json`` (ranker output).
-  2. ``shared_data/papers.json`` (data_collector output) via ``shared.loader``.
+  2. ``shared_data/papers.json`` (data_collector output) via direct JSON read.
 
 Writes ``shared_data/summarized_papers.json`` (schema unchanged from the
 standalone skill).
@@ -48,11 +48,17 @@ def resolve_input_papers(cfg: Optional[SummarizerConfig] = None) -> list[dict]:
         return papers
 
     try:
-        from shared.loader import SkillInputMissingError, load_papers_list
-    except ImportError as e:
+        papers_path = shared / "papers.json"
+        if not papers_path.is_file():
+            raise FileNotFoundError(f"No papers.json at {papers_path}")
+        with papers_path.open(encoding="utf-8") as f:
+            papers = json.load(f)
+        log.info("Using collector output: %s (%d papers)", papers_path, len(papers))
+        return papers
+    except FileNotFoundError as e:
         raise FileNotFoundError(
-            f"No ranked_papers.json at {ranked} and shared.loader is not "
-            "importable — run inside arxiv-research-agent or pass --input."
+            f"No ranked_papers.json at {ranked} and no papers.json at "
+            f"{shared / 'papers.json'} — run inside arxiv-research-agent or pass --input."
         ) from e
 
     try:

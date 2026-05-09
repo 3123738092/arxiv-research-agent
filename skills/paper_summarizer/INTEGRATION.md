@@ -22,8 +22,7 @@ into `shared_data/summarized_papers.json`.
 1. `shared_data/ranked_papers.json` — produced by the ranker. Payload shape:
    `{"papers": [...]}` or a bare list.
 2. `shared_data/papers.json` — produced by `data_collector`. Loaded through
-   `shared.loader.load_papers_list()` so downstream schema changes flow in
-   automatically.
+   direct JSON read so downstream schema changes flow in automatically.
 
 Each paper needs `title`, `abstract`, and (for `--mode pdf`) `pdf_url` /
 `arxiv_url`. All of these are produced by `data_collector`.
@@ -86,8 +85,8 @@ def run_skill3_summarize(top_n: int = 20, mode: str = "abstract"):
     return run_pipeline(config={"top_n": top_n, "mode": mode})
 ```
 
-No changes to `arxiv_agent.py`, `AGENTS.md`, `shared/loader.py`, or root
-`requirements.txt` are required to use the skill today.
+No changes to `arxiv_agent.py`, `AGENTS.md`, or root `requirements.txt`
+are required to use the skill today.
 
 ## Tests
 

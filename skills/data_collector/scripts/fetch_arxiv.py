@@ -33,6 +33,8 @@ def build_query(categories, keywords):
     kw_part = " OR ".join(f'all:"{kw}"' for kw in keywords)
     if len(categories) > 1:
         cat_part = f"({cat_part})"
+    if not keywords:
+        return cat_part
     return f"{cat_part} AND ({kw_part})"
 
 

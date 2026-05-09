@@ -2,9 +2,9 @@
 
 Input resolution order when --input is not given:
   1. ``<shared_data_dir>/ranked_papers.json`` (produced by the ranker Skill).
-  2. ``<shared_data_dir>/papers.json`` via ``shared.loader.load_papers_list``
+  2. ``<shared_data_dir>/papers.json`` via direct JSON read
      when running inside the arxiv-research-agent project (ranker not yet
-     wired up). Falls back silently if ``shared`` is not importable.
+     wired up).
   3. Error with the usual "Run the ranker first" message.
 """
 
@@ -32,19 +32,17 @@ def _load_papers_from_default(cfg: SummarizerConfig):
             data = json.load(f)
         return data.get("papers", []), ranked
 
-    # Fallback: data_collector's papers.json via the shared loader.
+    # Fallback: data_collector's papers.json directly.
     try:
         from pathlib import Path
-
-        from shared.loader import SkillInputMissingError, load_papers_list
-    except ImportError:
+        papers_path = Path(cfg.shared_data_dir) / "papers.json"
+        if not papers_path.is_file():
+            return None, None
+        with papers_path.open(encoding="utf-8") as f:
+            papers = json.load(f)
+        return papers, str(papers_path)
+    except (FileNotFoundError, json.JSONDecodeError):
         return None, None
-
-    try:
-        papers = load_papers_list(data_dir=Path(cfg.shared_data_dir))
-    except SkillInputMissingError:
-        return None, None
-    return papers, os.path.join(cfg.shared_data_dir, "papers.json")
 
 
 def main(argv: list[str] | None = None) -> int:

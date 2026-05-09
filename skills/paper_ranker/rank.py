@@ -9,18 +9,13 @@ Usage:
 
 import argparse
 import json
-import sys
 from pathlib import Path
 
 import numpy as np
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-SHARED_DATA = PROJECT_ROOT / "shared_data"
-sys.path.insert(0, str(PROJECT_ROOT))
-
-from shared.loader import (  # noqa: E402
+from ._io import (
     load_papers, load_citation_graph, load_embeddings, load_raw_papers,
-    SkillInputMissingError,
+    SkillInputMissingError, SHARED_DATA,
 )
 
 DEFAULT_ALPHA = 0.4  # weight for PageRank

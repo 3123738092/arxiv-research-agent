@@ -213,7 +213,7 @@ never call data_collector scripts directly.
 }
 ```
 
-**Pipeline runs**: `python -m skills.data_collector.scripts.pipeline --config config.json`
+**Pipeline runs**: `python /path/to/skills/arxiv-research-agent/skills/data_collector/scripts/pipeline.py --config config.json`
 
 **Output**: manifest shows 14 papers fetched, 2 deduped, 12 written to papers.json.
 
@@ -275,8 +275,10 @@ export WORKBUDDY_SHARED_DATA="/absolute/path/to/workspace/shared_data"
 # Optional: Semantic Scholar API key for higher rate limits
 # export SEMANTIC_SCHOLAR_API_KEY=your_key_here
 
-# Run pipeline with config
-WORKBUDDY_SHARED_DATA="C:/Users/31237/WorkBuddy/20260505170223/shared_data" \
-  python -m skills.data_collector.scripts.pipeline \
+# Run pipeline with config (can be called from any directory)
+python /path/to/skills/arxiv-research-agent/skills/data_collector/scripts/pipeline.py \
   --config /path/to/shared_data/config.json
 ```
+
+**Note**: The pipeline.py uses path self-healing — it automatically adds the skills root to `sys.path`,
+so it works regardless of the current working directory. No need to `cd` to the skills root.

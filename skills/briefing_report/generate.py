@@ -1,6 +1,6 @@
 """Generate Skill 4 daily briefing Markdown into shared_data/briefing.md.
 
-Reads: papers (+ optional rankings, communities, embeddings, manifest) via shared.loader.
+Reads: papers (+ optional rankings, communities, embeddings, manifest) via local _io.
 Does not import other skills — only JSON / numpy artifacts.
 """
 
@@ -17,8 +17,8 @@ from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 import numpy as np
 
-from shared.loader import (
-    DATA_DIR,
+from ._io import (
+    SHARED_DATA as DATA_DIR,
     SkillInputMissingError,
     load_citation_edges,
     load_communities,
@@ -466,7 +466,7 @@ def run_briefing_report(
                 lines.append(f"- `{fig.relative_to(base).as_posix()}`\n")
 
     lines.append(
-        "\n---\n\n_Data contract: `shared/loader.py` + optional "
+        "\n---\n\n_Data contract: local `_io.py` + optional "
         "`rankings.json`, `communities.json`, `visualizations/`._\n"
     )
 

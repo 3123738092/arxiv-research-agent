@@ -90,7 +90,7 @@ A legacy standalone Anthropic-API path remains in `skills/paper_summarizer/summa
 
 ## Shared Data Contract
 
-All inter-skill communication goes through `shared_data/`. See `shared/loader.py` for the typed loading API. **No skill imports another skill's Python modules.**
+All inter-skill communication goes through `shared_data/`. Each skill owns its `_io.py` for typed data loading. **No skill imports another skill's Python modules.**
 
 ### Files produced by Skill 1 (data-collector)
 

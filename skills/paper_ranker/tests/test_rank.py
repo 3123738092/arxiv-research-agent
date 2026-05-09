@@ -1,13 +1,8 @@
 """Tests for Skill 2 — Paper Ranker."""
 
-import sys
 from pathlib import Path
 
 import pytest
-
-FIXTURES = Path(__file__).resolve().parent / "fixtures"
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
 
 from skills.paper_ranker.rank import (
     rank_papers,
@@ -19,7 +14,9 @@ from skills.paper_ranker.rank import (
     save_ranked_papers,
     _generate_ranking_reason,
 )
-from shared.loader import load_papers, load_citation_graph, load_embeddings, load_raw_papers
+from skills.paper_ranker._io import load_papers, load_citation_graph, load_embeddings, load_raw_papers
+
+FIXTURES = Path(__file__).resolve().parent / "fixtures"
 
 
 def test_load_fixtures():

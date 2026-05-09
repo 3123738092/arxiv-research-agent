@@ -91,7 +91,7 @@ print(f"Wrote briefing to: {out}")
 
 ## Constraints
 
-- **Do not import other skills' Python modules.** Read everything via `shared.loader`.
+- **Do not import other skills' Python modules.** Read everything via local `_io.py`.
 - **Idempotent.** Re-running overwrites `briefing.md` in place.
 - **No external API calls.** All rendering is local string manipulation.
 - **No emoji** in output unless explicitly requested by the user.

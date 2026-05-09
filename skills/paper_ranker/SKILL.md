@@ -173,7 +173,7 @@ python -m skills.paper_ranker.rank --interest "LLM agents" --alpha 0.3 --beta 0.
 
 ## Constraints
 
-1. **No implementation imports from other skills** — reads only via `shared/loader.py`
+1. **No implementation imports from other skills** — reads only via local `_io.py`
 2. **Idempotent** — re-running overwrites `rankings.json`
 3. **Graceful degradation** — works even without embeddings (interest scoring falls back to 0)
 4. **Handles isolated nodes** — papers with no citation edges get PageRank = 0, not omitted
@@ -184,5 +184,5 @@ python -m skills.paper_ranker.rank --interest "LLM agents" --alpha 0.3 --beta 0.
 
 | Reference File | When to Read |
 |----------------|-------------|
-| `shared/loader.py` | Understanding data loading API and contracts |
+| `_io.py` | Understanding data loading API and contracts |
 | `skills/data_collector/contracts/papers.schema.json` | Debugging paper field availability |

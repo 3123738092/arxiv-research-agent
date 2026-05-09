@@ -1,27 +1,43 @@
 """Stage 1 + Orchestrator: Main pipeline entry point for data_collector.
 
 Usage:
-    python -m skills.data_collector.scripts.pipeline --config config.json
+    python /path/to/skills/arxiv-research-agent/skills/data_collector/scripts/pipeline.py --config config.json
 
 Config JSON keys:
     categories, keywords, date_range {start, end}, max_results, backtrack_days,
     negative_keywords, sources, user_interest_text
+
+Note: This script uses path self-healing — it works from any working directory.
 """
+
+# --- 路径自修复：确保无论从哪里调用都能正确导入 ---
+import sys
+from pathlib import Path
+
+_current = Path(__file__).resolve()
+# scripts/ → data_collector/ → skills/ → arxiv-research-agent/ → skills/ → 根目录（向上4层）
+# ~/.workbuddy/skills/arxiv-research-agent/skills/data_collector/scripts/pipeline.py
+# 正确根目录：~/.workbuddy/skills/arxiv-research-agent/
+# 导入路径是 skills.data_collector，所以需要添加父目录到 sys.path
+_skills_root = _current.parents[3]
+if str(_skills_root) not in sys.path:
+    sys.path.insert(0, str(_skills_root))
+# ---------------------------------------------------------
 
 import argparse
 import json
 import time
 from datetime import datetime
 
-from .utils import (
+from skills.data_collector.scripts.utils import (
     SHARED_DATA, save_json, load_last_fetch, save_last_fetch, short_hash,
 )
-from .fetch_arxiv import fetch_arxiv_papers, filter_by_negative_keywords
-from .dedup import dedup_papers, update_seen_ids
-from .enrich_semantic_scholar import enrich_papers
-from .build_graph_edges import build_all_edges
-from .embed import embed_papers
-from .validate import validate_all
+from skills.data_collector.scripts.fetch_arxiv import fetch_arxiv_papers, filter_by_negative_keywords
+from skills.data_collector.scripts.dedup import dedup_papers, update_seen_ids
+from skills.data_collector.scripts.enrich_semantic_scholar import enrich_papers
+from skills.data_collector.scripts.build_graph_edges import build_all_edges
+from skills.data_collector.scripts.embed import embed_papers
+from skills.data_collector.scripts.validate import validate_all
 
 
 def run_pipeline(config):

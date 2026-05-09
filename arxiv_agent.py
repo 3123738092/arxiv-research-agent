@@ -147,7 +147,7 @@ def run_skill4_report():
     """Skill 4 — generate daily briefing (Markdown + agent hook JSON)."""
     import os
 
-    from shared.loader import SkillInputMissingError
+    from skills.briefing_report._io import SkillInputMissingError
     from skills.briefing_report.generate import run_briefing_report
 
     try:
@@ -315,7 +315,7 @@ def run_daily_pipeline(categories=None, keywords=None, date_start=None, date_end
 
 def check_status():
     """Report on the current state of shared_data/."""
-    from shared.loader import load_manifest, SkillInputMissingError
+    from skills.briefing_report._io import load_manifest, SkillInputMissingError
 
     print("shared_data/ status:")
     for f in ["papers.json", "authors.json", "affiliations.json",

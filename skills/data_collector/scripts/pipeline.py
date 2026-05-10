@@ -30,10 +30,10 @@ import time
 from datetime import datetime
 
 from skills.data_collector.scripts.utils import (
-    SHARED_DATA, save_json, load_last_fetch, save_last_fetch, short_hash,
+    set_shared_data, save_json, short_hash,
 )
 from skills.data_collector.scripts.fetch_arxiv import fetch_arxiv_papers, filter_by_negative_keywords
-from skills.data_collector.scripts.dedup import dedup_papers, update_seen_ids
+from skills.data_collector.scripts.dedup import dedup_papers
 from skills.data_collector.scripts.enrich_semantic_scholar import enrich_papers
 from skills.data_collector.scripts.build_graph_edges import build_all_edges
 from skills.data_collector.scripts.embed import embed_papers
@@ -78,8 +78,7 @@ def run_pipeline(config):
         warnings.append(f"Filtered {neg_filtered} papers by negative keywords")
 
     # Stage 3: Deduplicate
-    last_fetch = load_last_fetch()
-    papers, dedup_stats = dedup_papers(papers, last_fetch.get("seen_ids", []))
+    papers, dedup_stats = dedup_papers(papers)
     warnings.append(f"Dedup: {dedup_stats}")
 
     # Stage 4: Enrich via Semantic Scholar
@@ -107,10 +106,6 @@ def run_pipeline(config):
 
     # Stage 7c: Write legacy view
     _write_legacy_raw_papers(validated["papers"])
-
-    # State: update last_fetch
-    new_seen = update_seen_ids(last_fetch, validated["papers"])
-    save_last_fetch(new_seen, config)
 
     # Stage 8: Manifest
     elapsed = round(time.time() - t0, 2)
@@ -186,7 +181,20 @@ def _write_legacy_raw_papers(papers):
 def main():
     parser = argparse.ArgumentParser(description="Data Collector Pipeline")
     parser.add_argument("--config", required=True, help="Path to JSON config file")
+    parser.add_argument(
+        "--shared-data",
+        default=None,
+        dest="shared_data",
+        help=(
+            "Output directory for shared_data/. "
+            "Priority: --shared-data > WORKBUDDY_SHARED_DATA env > ~/.workbuddy/shared_data"
+        ),
+    )
     args = parser.parse_args()
+
+    # Apply path override before any I/O — must happen before run_pipeline
+    if args.shared_data:
+        set_shared_data(args.shared_data)
 
     with open(args.config, encoding="utf-8") as f:
         config = json.load(f)

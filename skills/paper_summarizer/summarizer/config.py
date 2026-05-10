@@ -13,6 +13,8 @@ from dataclasses import dataclass, field
 def _default_shared_dir() -> str:
     """Resolve shared_data/ by walking up from this module.
 
+    Priority: WORKBUDDY_SHARED_DATA env > tree walk fallback.
+
     Works in three deployment layouts:
       1. Inside arxiv-research-agent: skills/paper_summarizer/summarizer/config.py
          — the ancestor containing arxiv_agent.py has shared_data/ next to it.
@@ -20,6 +22,11 @@ def _default_shared_dir() -> str:
          — ../shared_data exists if placed inside a larger project.
       3. Anything else: fall back to ../data relative to this file.
     """
+    # Highest priority: env var set by the agent framework
+    env = os.environ.get("WORKBUDDY_SHARED_DATA")
+    if env:
+        return env
+
     here = os.path.dirname(os.path.abspath(__file__))
     cur = here
     for _ in range(6):

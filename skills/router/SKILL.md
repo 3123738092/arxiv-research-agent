@@ -141,25 +141,13 @@ Skill(skill="briefing_report",
 
 ### Stage 5 — Activate `papers-analysis-visualizer`
 
-**Before invoking the skill, check Notion readiness:**
+The visualizer skill handles Notion prompting on its own — do NOT pass `skip-notion` args.
 
-1. Read `.env` in the project root. If `NOTION_API_TOKEN` is set and non-empty, invoke with `skip-notion: false`:
-   ```
-   Skill(skill="papers-analysis-visualizer",
-         args="skip-notion: false; language: <en|zh>")
-   ```
+```
+Skill(skill="papers-analysis-visualizer")
+```
 
-2. If `NOTION_API_TOKEN` is NOT set, **ask the user**:
-   > "Would you like to sync papers to a Notion database? This requires a free Notion integration (3-minute setup). [Y/n]"
-
-   - **If the user says YES**: show the setup guide from `papers-analysis-visualizer` SKILL.md (the 3-step guide under "User Setup"). Wait for the user to complete setup and confirm. Then invoke with `skip-notion: false`.
-   - **If the user says NO or skips**: invoke with `skip-notion: true`:
-     ```
-     Skill(skill="papers-analysis-visualizer",
-           args="skip-notion: true")
-     ```
-
-**Expected outputs:** `shared_data/visualizer_input.json`, `output/dashboard.html` (+ `output/notion_mapping.json` if Notion sync enabled).
+**Expected outputs:** `shared_data/visualizer_input.json`, `output/dashboard.html` (+ `output/notion_mapping.json` if user opted into Notion sync).
 
 ---
 
@@ -198,8 +186,6 @@ If the user asks for ONE specific stage, do NOT run this router. Activate the su
 - **Any stage's `manifest.json.errors` is non-empty:** report errors verbatim, ask user whether to retry that stage.
 - **Stage 3 (your in-context summarization) — paper without abstract:** skip that paper, note it in `summarized_count`.
 - **Stage 5 — `dashboard.html` not produced:** report the file path that should exist and surface the underlying error from the sub-skill.
-- **`last_fetch.json` blocks re-runs (cross-date dedup ate everything):** advise the user to rename `shared_data/last_fetch.json` to `last_fetch.json.bak` and rerun Stage 1.
-
 Always surface failures to the user — never silently swallow.
 
 ---

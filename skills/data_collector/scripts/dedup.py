@@ -1,23 +1,20 @@
-"""Stage 3: Deduplicate papers across versions, categories, and dates."""
+"""Stage 3: Deduplicate papers across versions and categories."""
 
-from .utils import normalize_arxiv_id, load_last_fetch
+from .utils import normalize_arxiv_id
 
 
-def dedup_papers(papers, last_fetch_seen=None):
+def dedup_papers(papers):
     """Deduplicate paper list.
 
     1. Cross-version dedup: keep latest version per arxiv_id
     2. Cross-category dedup: same arxiv_id appears in multiple categories
-    3. Cross-date dedup: remove papers already seen in last_fetch
 
     Args:
         papers: list of paper dicts with 'arxiv_id' key
-        last_fetch_seen: set of arxiv_ids from previous runs
 
     Returns:
         (deduped_papers, dedup_stats)
     """
-    seen_ids = set(last_fetch_seen or [])
     groups = {}
     for p in papers:
         aid = normalize_arxiv_id(p.get("arxiv_id", ""))
@@ -31,21 +28,13 @@ def dedup_papers(papers, last_fetch_seen=None):
             if current_ver > existing_ver:
                 groups[aid] = p
 
+    result = list(groups.values())
     stats = {
         "input_count": len(papers),
         "after_version_dedup": len(groups),
-        "cross_date_dedup_removed": 0,
-        "output_count": 0,
+        "output_count": len(result),
     }
 
-    result = []
-    for aid, p in groups.items():
-        if aid in seen_ids:
-            stats["cross_date_dedup_removed"] += 1
-            continue
-        result.append(p)
-
-    stats["output_count"] = len(result)
     return result, stats
 
 
@@ -57,14 +46,6 @@ def _version_number(versioned_id):
         except ValueError:
             return 1
     return 1
-
-
-def update_seen_ids(last_fetch, new_papers):
-    """Return the updated set of all seen arxiv_ids."""
-    seen = set(last_fetch.get("seen_ids", []))
-    for p in new_papers:
-        seen.add(normalize_arxiv_id(p.get("arxiv_id", "")))
-    return list(seen)
 
 
 # Standalone test

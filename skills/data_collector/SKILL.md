@@ -14,8 +14,8 @@ metadata:
     primaryEnv: SEMANTIC_SCHOLAR_API_KEY
     envVars:
       - name: WORKBUDDY_SHARED_DATA
-        required: true
-        note: "Absolute path to the current workspace's shared_data/ directory. Must be set at runtime — without it, output is written to ~/.workbuddy/shared_data/ instead of the workspace. Example: C:/Users/31237/WorkBuddy/20260505170223/shared_data"
+        required: false
+        note: "Output path fallback (lowest priority). --shared-data CLI arg overrides this. Without either, output goes to ~/.workbuddy/shared_data/ — likely wrong workspace."
       - name: SEMANTIC_SCHOLAR_API_KEY
         required: false
         note: "Semantic Scholar API key for higher rate limits (100 req/s with key vs 1 req/s without). Free tier at semanticscholar.org."
@@ -30,7 +30,7 @@ Your job is to:
 
 1. Fetch papers from arXiv API by category + keyword + date range
 2. Enrich each paper with Semantic Scholar data (references, citation counts, author IDs)
-3. Deduplicate across versions, categories, and dates
+3. Deduplicate across versions and categories
 4. Pre-compute text embeddings for downstream ranking
 5. Build graph edge tables (citations, co-authorship, author-paper)
 6. Output a structured **data center** to `shared_data/`
@@ -109,7 +109,6 @@ The pipeline executes these stages in strict order:
 - Script: `scripts/dedup.py`
 - Strip version suffix from arxiv_id (e.g., `2301.00001v2` → `2301.00001`)
 - Cross-category dedup by arxiv_id
-- Cross-date dedup against `last_fetch.json` seen-set
 
 ### Stage 4 — Enrich via Semantic Scholar
 - Script: `scripts/enrich_semantic_scholar.py`
@@ -134,7 +133,6 @@ The pipeline executes these stages in strict order:
 - Pydantic models for all output files
 - Validate before writing — fail early if schema violations detected
 - Write all files to `shared_data/`
-- Update `last_fetch.json` with seen arxiv_ids
 
 ### Stage 8 — Report Summary
 - Output `manifest.json` with: run metadata, per-source paper counts, API errors, timing
@@ -159,8 +157,7 @@ shared_data/
 ├── embeddings/
 │   ├── paper_vecs.npy         # float32, shape (N, 384)
 │   └── index.json             # { arxiv_id: row_number }
-├── raw_papers.json            # Legacy compatibility: flat list with all fields inlined
-└── last_fetch.json            # State: { last_fetch_time, seen_ids[], params }
+└── raw_papers.json            # Legacy compatibility: flat list with all fields inlined
 ```
 
 All JSON schemas are in `contracts/`. Downstream Skills MUST read from these files —
@@ -176,8 +173,7 @@ never call data_collector scripts directly.
    validation runs before any write.
 3. **Rate limits**: arXiv API: ≥3s between requests. Semantic Scholar: 1 req/s without API key,
    100 req/s with key. Use `tenacity` exponential backoff on 429/503 responses.
-4. **Idempotent writes**: output files are fully overwritten each run. `last_fetch.json`
-   enables incremental dedup across runs.
+4. **Idempotent writes**: output files are fully overwritten each run.
 5. **No side effects**: this skill only writes to `shared_data/` and reads from APIs. It does
    not call other Skills.
 
@@ -268,17 +264,23 @@ the agent should read them **on demand** when it needs specific information:
 # Install dependencies
 pip install arxiv tenacity pydantic sentence-transformers requests numpy
 
-# Required: set workspace shared_data path
-export WORKBUDDY_SHARED_DATA="/absolute/path/to/workspace/shared_data"
-# Windows (bash): export WORKBUDDY_SHARED_DATA="C:/Users/31237/WorkBuddy/20260505170223/shared_data"
-
-# Optional: Semantic Scholar API key for higher rate limits
-# export SEMANTIC_SCHOLAR_API_KEY=your_key_here
-
 # Run pipeline with config (can be called from any directory)
 python /path/to/skills/arxiv-research-agent/skills/data_collector/scripts/pipeline.py \
   --config /path/to/shared_data/config.json
 ```
 
-**Note**: The pipeline.py uses path self-healing — it automatically adds the skills root to `sys.path`,
-so it works regardless of the current working directory. No need to `cd` to the skills root.
+**Shared data output path — priority order:**
+
+| Priority | Source | Example |
+|----------|--------|---------|
+| 1 (highest) | `--shared-data` CLI arg | `--shared-data "C:/Users/31237/WorkBuddy/20260505170223/shared_data"` |
+| 2 | `WORKBUDDY_SHARED_DATA` env var | `export WORKBUDDY_SHARED_DATA="C:/Users/31237/WorkBuddy/20260505170223/shared_data"` |
+| 3 (fallback) | `~/.workbuddy/shared_data` | auto-created if neither above is set |
+
+> ⚠️ **Silent data loss warning**: Without either `--shared-data` or `WORKBUDDY_SHARED_DATA`,
+> output goes to `~/.workbuddy/shared_data/` — likely not your workspace. Always specify explicitly.
+
+**Optional: Semantic Scholar API key** (100 req/s vs 1 req/s without):
+```bash
+export SEMANTIC_SCHOLAR_API_KEY=your_key_here
+```

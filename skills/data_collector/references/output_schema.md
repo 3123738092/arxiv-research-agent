@@ -37,4 +37,4 @@ When no papers found: all files written but empty. `manifest.source_status.arxiv
 
 ## Incremental Fetch
 
-`last_fetch.json` tracks previously seen arxiv_ids for cross-run deduplication.
+Deduplication removes version/category duplicates within a single run. Each run is independent — no cross-run deduplication state is kept.

@@ -24,6 +24,26 @@ PROJECT_ROOT = HERE.parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+
+def resolve_shared_data(override=None):
+    """Resolve shared_data path.
+
+    Priority: CLI arg > WORKBUDDY_SHARED_DATA env > PROJECT_ROOT/shared_data (fallback).
+    """
+    if override:
+        return Path(override)
+    env = os.environ.get("WORKBUDDY_SHARED_DATA")
+    if env:
+        return Path(env)
+    return PROJECT_ROOT / "shared_data"
+
+
+def _get_shared_data(shared_data):
+    """Runtime path resolution: use CLI arg if given, otherwise check env, else fallback."""
+    if shared_data is not None:
+        return Path(shared_data)
+    return resolve_shared_data()
+
 from skills.paper_summarizer.summarizer.prompts import build_user_prompt, get_system_prompt
 from skills.paper_summarizer.summarizer.schema import SUMMARY_FIELDS
 
@@ -136,7 +156,7 @@ def run(
     mode: str = "abstract",
     shared_data: Optional[Path] = None,
 ) -> dict:
-    shared_data = Path(shared_data or (PROJECT_ROOT / "shared_data"))
+    shared_data = _get_shared_data(shared_data)
     papers = _load_papers(shared_data)
     if not papers:
         return {

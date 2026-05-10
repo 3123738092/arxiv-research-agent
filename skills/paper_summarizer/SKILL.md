@@ -16,7 +16,7 @@ does the summarization itself; this skill does NOT call any external API.**
 
 ## Two-step host-LLM flow
 
-1. **Prepare** — `python -m skills.paper_summarizer.scripts.prepare --top-n 10 --language en`
+1. **Prepare** — `python -m skills.paper_summarizer.scripts.prepare --top-n 10 --language en --shared-data /path/to/workspace/shared_data`
    - Reads `shared_data/ranked_papers.json` (sorted by relevance + novelty).
    - Writes `shared_data/summarize_request.json` with: system prompt, user
      prompt, output schema, and the top-N paper objects.
@@ -25,7 +25,7 @@ does the summarization itself; this skill does NOT call any external API.**
    following the system prompt, and writes
    `shared_data/summarized_papers.json` either as a bare list or as the
    canonical envelope `{count, summarized_count, model, mode, language, papers}`.
-3. **Finalize** — `python -m skills.paper_summarizer.scripts.finalize` or
+3. **Finalize** — `python -m skills.paper_summarizer.scripts.finalize --shared-data /path/to/workspace/shared_data` or
    `python arxiv_agent.py finalize-summary`
    - Normalizes summary fields, merges upstream paper metadata, re-emits
      the canonical envelope, reports any missing summaries.
@@ -68,6 +68,21 @@ Plus metadata: `count`, `summarized_count`, `model`, `mode`, `language`.
   being present with correct types.
 - **Tolerant ingestion**: `finalize.py` accepts either a bare list or an
   envelope, so the host LLM can write whichever is easier to produce.
+
+## Shared data output path
+
+All three entry points (`prepare`, `finalize`, `pipeline`) resolve `shared_data/` with the same priority:
+
+| Priority | Source | Example |
+|----------|--------|---------|
+| 1 (highest) | `--shared-data` CLI arg | `--shared-data "C:/Users/31237/WorkBuddy/20260505170223/shared_data"` |
+| 2 | `WORKBUDDY_SHARED_DATA` env var | `export WORKBUDDY_SHARED_DATA="C:/Users/31237/WorkBuddy/20260505170223/shared_data"` |
+| 3 (fallback) | `PROJECT_ROOT/shared_data/` | auto-detected by tree walk |
+
+> ⚠️ **Silent data loss warning**: Without either `--shared-data` or `WORKBUDDY_SHARED_DATA`,
+> `prepare` and `finalize` fall back to `PROJECT_ROOT/shared_data/` which is the source
+> tree (`D:\桌面\arxiv-research-agent/skills/shared_data/`), **not** your workspace.
+> Always specify explicitly when running from the agent.
 
 ## Standalone (legacy, optional)
 

@@ -18,16 +18,16 @@ The agent is **one orchestrator + five skills**, communicating through a star-sc
                                  │
          ┌───────────┬───────────┼───────────┬─────────────┐
          ▼           ▼           ▼           ▼             ▼
-   Skill 1       Skill 2     Skill 3      Skill 5       Skill 4
-   data-         paper-      paper-       papers-       briefing-
-   collector     ranker      summarizer   analysis-viz  report
+   Skill 1       Skill 2     Skill 3      Skill 4       Skill 5
+   data-         paper-      paper-       briefing-     papers-
+   collector     ranker      summarizer   report        analysis-viz
          │           │           │           │             │
          └───────────┴──────►shared_data/◄───┴─────────────┘
                   (papers, edges, embeddings, rankings,
                    summaries, dashboard.html, briefing.md)
 ```
 
-Pipeline order: **1 → 2 → 3 → 5 → 4**
+Pipeline order: **1 → 2 → 3 → 4 → 5**
 
 Skill 3 has a **two-step host-LLM gate** between `prepare` and `finalize`: the host model running this Agent (Claude Code / WorkBuddy) summarizes papers in-context using its own conversation API. No extra LLM API key is required.
 
@@ -37,10 +37,10 @@ Skill 3 has a **two-step host-LLM gate** between `prepare` and `finalize`: the h
 
 | # | Skill | Directory | Responsibility |
 |---|-------|-----------|----------------|
-| 1 | data-collector | `skills/data_collector/` | Fetch arXiv, enrich with Semantic Scholar, embed (MiniLM), build star-schema graphs |
-| 2 | paper-ranker | `skills/paper_ranker/` | PageRank on citation graph + interest/novelty scoring |
-| 3 | paper-summarizer | `skills/paper_summarizer/` | Prepare host-LLM request → summarize in-context → finalize/normalize |
-| 4 | briefing-report | `skills/briefing_report/` | Render Markdown daily briefing |
+| 1 | data_collector | `skills/data_collector/` | Fetch arXiv, enrich with Semantic Scholar, embed (MiniLM), build star-schema graphs |
+| 2 | paper_ranker | `skills/paper_ranker/` | PageRank on citation graph + interest/novelty scoring |
+| 3 | paper_summarizer | `skills/paper_summarizer/` | Prepare host-LLM request → summarize in-context → finalize/normalize |
+| 4 | briefing_report | `skills/briefing_report/` | Render Markdown daily briefing |
 | 5 | papers-analysis-visualizer | `skills/papers-analysis-visualizer/` | HTML dashboard + optional Notion sync |
 
 Each skill ships its own `SKILL.md` manifest and is independently runnable.

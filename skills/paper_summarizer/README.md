@@ -1,4 +1,4 @@
-# Skill 3 — paper-summarizer
+# Skill 3 — paper_summarizer
 
 > Daily arXiv Research Briefing Agent · 成员 C
 >

@@ -3,7 +3,6 @@ name: briefing_report
 description: "Render the daily Markdown briefing for the arXiv Research Briefing Agent. Reads ranked + summarized papers from shared_data/ and writes shared_data/briefing.md with top-N picks, key contributions, methods, keywords, and trend analysis. Trigger when user asks: '生成今天的简报', '导出 Markdown 简报', 'write the briefing', 'render daily report', 'regenerate briefing.md', 'give me the Markdown of today's papers'. This is Skill 4 of 5 in the agent — final output stage. Do NOT use this skill to fetch or rank papers; only to render the report once shared_data/ already contains rankings + summaries."
 version: 1.0.0
 author: Han
-agent: arxiv-research-agent
 agent_created: true
 tags: [arxiv, briefing, markdown, report, daily-digest, social-network-analysis]
 metadata:

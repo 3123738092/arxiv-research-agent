@@ -1,4 +1,4 @@
-"""Skill 3: paper-summarizer.
+"""Skill 3: paper_summarizer.
 
 Extract structured summaries (one-line summary, key contributions, methods,
 keywords) from ranked arXiv papers using Claude.

@@ -1,17 +1,17 @@
 ---
-name: arxiv-research-agent
+name: router
 description: >
   Daily arXiv Research Briefing Agent — host-LLM driven multi-skill agent that
   fetches, ranks, summarizes, visualizes, and reports on daily arXiv papers.
 version: 1.1.0
 skills:
-  - data-collector
-  - paper-ranker
-  - paper-summarizer
+  - data_collector
+  - paper_ranker
+  - paper_summarizer
   - papers-analysis-visualizer
-  - briefing-report
+  - briefing_report
 pipeline:
-  order: [data-collector, paper-ranker, paper-summarizer, papers-analysis-visualizer, briefing-report]
+  order: [data_collector, paper_ranker, paper_summarizer, briefing_report, papers-analysis-visualizer]
 ---
 
 # arXiv Research Briefing Agent
@@ -27,10 +27,10 @@ Daily arXiv ingestion, ranking, host-LLM summarization, dashboard visualization,
 
 | # | Skill | Directory | Purpose |
 |---|-------|-----------|---------|
-| 1 | **data-collector** | `skills/data_collector/` | Fetch arXiv papers, enrich with Semantic Scholar, embed (MiniLM), build star-schema graphs → `shared_data/` |
-| 2 | **paper-ranker** | `skills/paper_ranker/` | PageRank on citation graph + interest/novelty scoring → `rankings.json`, `ranked_papers.json` |
-| 3 | **paper-summarizer** | `skills/paper_summarizer/` | Two-step host-LLM flow: prepare request → host LLM summarizes in-context → finalize/normalize |
-| 4 | **briefing-report** | `skills/briefing_report/` | Generate Markdown daily briefing with top papers and one-line summaries |
+| 1 | **data_collector** | `skills/data_collector/` | Fetch arXiv papers, enrich with Semantic Scholar, embed (MiniLM), build star-schema graphs → `shared_data/` |
+| 2 | **paper_ranker** | `skills/paper_ranker/` | PageRank on citation graph + interest/novelty scoring → `rankings.json`, `ranked_papers.json` |
+| 3 | **paper_summarizer** | `skills/paper_summarizer/` | Two-step host-LLM flow: prepare request → host LLM summarizes in-context → finalize/normalize |
+| 4 | **briefing_report** | `skills/briefing_report/` | Generate Markdown daily briefing with top papers and one-line summaries |
 | 5 | **papers-analysis-visualizer** | `skills/papers-analysis-visualizer/` | Build interactive HTML dashboard (top papers, keywords, history); optional Notion sync |
 
 ## Execution Order
@@ -38,21 +38,21 @@ Daily arXiv ingestion, ranking, host-LLM summarization, dashboard visualization,
 Skills have **data dependencies** (not implementation imports):
 
 ```
-Skill 1 (data-collector) ──► shared_data/ (papers, authors, edges, embeddings)
+Skill 1 (data_collector) ──► shared_data/ (papers, authors, edges, embeddings)
                                  │
                                  ▼
-                          Skill 2 (paper-ranker) ──► rankings.json, ranked_papers.json
+                          Skill 2 (paper_ranker) ──► rankings.json, ranked_papers.json
                                  │
                                  ▼
-                          Skill 3 (paper-summarizer)
+                          Skill 3 (paper_summarizer)
                           ├─ prepare → summarize_request.json
                           ├─ HOST LLM summarizes in-context
                           └─ finalize → summarized_papers.json
                                  │
                           ┌──────┴──────┐
                           ▼             ▼
-                     Skill 5 (viz)   Skill 4 (briefing)
-                     dashboard.html  briefing.md
+                     Skill 4 (briefing)   Skill 5 (viz)
+                     briefing.md  dashboard.html
 ```
 
 - Skill 1 MUST run first (produces all data)
@@ -86,13 +86,13 @@ A legacy standalone Anthropic-API path remains in `skills/paper_summarizer/summa
 | "summarize top papers" / "总结论文" | Skill 3 | Keywords: summarize, summary, 总结, 摘要 |
 | "build dashboard" / "可视化" | Skill 5 | Keywords: visualize, dashboard, chart, 可视化 |
 | "generate daily briefing" / "生成简报" | Skill 4 | Keywords: report, briefing, 简报, 报告 |
-| "daily briefing" / "今日简报" | Pipeline | Run Skills 1→2→3→5→4 in order |
+| "daily briefing" / "今日简报" | Pipeline | Run Skills 1→2→3→4→5 in order |
 
 ## Shared Data Contract
 
 All inter-skill communication goes through `shared_data/`. Each skill owns its `_io.py` for typed data loading. **No skill imports another skill's Python modules.**
 
-### Files produced by Skill 1 (data-collector)
+### Files produced by Skill 1 (data_collector)
 
 | File | Type | Contents |
 |------|------|----------|

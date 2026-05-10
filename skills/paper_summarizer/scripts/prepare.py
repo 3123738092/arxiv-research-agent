@@ -84,7 +84,7 @@ def build_request(
     trimmed = [_trim_paper(p, i) for i, p in enumerate(selected)]
 
     instructions = (
-        "You are running Skill 3 (paper-summarizer) of the arXiv Research "
+        "You are running Skill 3 (paper_summarizer) of the arXiv Research "
         "Briefing Agent. Read the papers in `papers` below, summarize each "
         "according to the schema, and write the result to "
         f"`shared_data/{output_path}`. Do not call any external API for "

@@ -1,4 +1,4 @@
-"""Configuration for the paper-summarizer Skill.
+"""Configuration for the paper_summarizer Skill.
 
 All tunables in one place. The main Agent's `config.py` can be imported as a
 fallback so this Skill works both standalone and as part of the full pipeline.

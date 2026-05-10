@@ -1,7 +1,7 @@
 """Main orchestrator for the arXiv Research Briefing Agent.
 
 Entry point for WorkBuddy. Coordinates all 5 skills in pipeline order:
-Skill 1 (data-collector) → Skill 2 (ranker) → Skill 3 (summarizer) → Skill 5 (viz) → Skill 4 (report)
+Skill 1 (data_collector) → Skill 2 (paper_ranker) → Skill 3 (paper_summarizer) → Skill 4 (briefing_report) → Skill 5 (viz)
 
 Usage:
     python arxiv_agent.py daily                          # Full daily pipeline
@@ -273,7 +273,7 @@ def run_skill5_viz(skip_notion=False):
 # --------------------------------------------------------------------------
 
 def run_daily_pipeline(categories=None, keywords=None, date_start=None, date_end=None):
-    """Run the full daily briefing pipeline: Skills 1→2→3→5→4."""
+    """Run the full daily briefing pipeline: Skills 1→2→3→4→5."""
     categories = categories or ["cs.CL", "cs.LG", "cs.CV", "cs.AI", "cs.MA"]
     keywords = keywords or ["agent", "skill", "tool use", "LLM", "language model"]
 
@@ -353,7 +353,7 @@ def main():
     )
     sub = parser.add_subparsers(dest="command")
 
-    daily = sub.add_parser("daily", help="Run full daily pipeline (Skills 1→2→3→5→4)")
+    daily = sub.add_parser("daily", help="Run full daily pipeline (Skills 1→2→3→4→5)")
     daily.add_argument("--categories", nargs="*", help="arXiv categories")
     daily.add_argument("--keywords", nargs="*", help="Search keywords")
     daily.add_argument("--date-start", help="Start date YYYY-MM-DD")

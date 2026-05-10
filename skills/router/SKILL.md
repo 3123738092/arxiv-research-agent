@@ -1,5 +1,5 @@
 ---
-name: arxiv-research-agent
+name: router
 description: |
   Daily arXiv research briefing agent. Fetches today's papers from arXiv (cs.CL/cs.LG/cs.CV/cs.AI/cs.MA),
   ranks them by PageRank + user interest + novelty, summarizes the top-N in-context, builds an interactive
@@ -19,7 +19,7 @@ description: |
 version: 2.1.0
 author: Han
 tags: [arxiv, agent, research, briefing, daily-digest, social-network-analysis, pagerank, llm, router]
-agent: arxiv-research-agent
+agent: router
 ---
 
 # arXiv Research Briefing Agent — Router
@@ -69,9 +69,9 @@ Each step below activates a sub-skill by **name**. The names match the `name:` f
 |------|---------------|------|
 | 1 | `data_collector` | Fetch papers, build graph edges, compute embeddings |
 | 2 | `paper_ranker` | PageRank + interest match + novelty scoring |
-| 3 | `paper-summarizer` | Prepare top-N for host-LLM summarization, then finalize |
-| 4 | `papers-analysis-visualizer` | Render interactive HTML dashboard |
-| 5 | `briefing_report` | Render Markdown briefing |
+| 3 | `paper_summarizer` | Prepare top-N for host-LLM summarization, then finalize |
+| 4 | `briefing_report` | Render Markdown briefing |
+| 5 | `papers-analysis-visualizer` | Render interactive HTML dashboard |
 
 Activate each one with `Skill(skill="<name>", args="<parameters in natural language>")`. Each sub-skill's `SKILL.md` documents the exact inputs it expects — read the sub-skill's bootstrap section before running it.
 
@@ -107,12 +107,12 @@ Skill(skill="paper_ranker",
 
 **Expected outputs:** `shared_data/rankings.json`, `shared_data/ranked_papers.json`.
 
-### Stage 3 — Activate `paper-summarizer` (two parts with host-LLM step in between)
+### Stage 3 — Activate `paper_summarizer` (two parts with host-LLM step in between)
 
 This sub-skill has a **prepare → host-LLM → finalize** flow. Activate it once; the sub-skill's own `SKILL.md` walks you through:
 
 ```
-Skill(skill="paper-summarizer",
+Skill(skill="paper_summarizer",
       args="top-n: <N>; language: <en|zh>")
 ```
 
@@ -130,18 +130,7 @@ For each paper in `request.papers`, generate:
 
 Write either a bare list or the canonical envelope `{count, summarized_count, model, mode, language, papers}` to `shared_data/summarized_papers.json`. `finalize` tolerates both shapes.
 
-### Stage 4 — Activate `papers-analysis-visualizer`
-
-```
-Skill(skill="papers-analysis-visualizer",
-      args="skip-notion: true")
-```
-
-(Drop `skip-notion: true` only if `NOTION_API_TOKEN` is set in the environment.)
-
-**Expected outputs:** `shared_data/visualizer_input.json`, `output/dashboard.html`.
-
-### Stage 5 — Activate `briefing_report`
+### Stage 4 — Activate `briefing_report`
 
 ```
 Skill(skill="briefing_report",
@@ -149,6 +138,28 @@ Skill(skill="briefing_report",
 ```
 
 **Expected output:** `shared_data/briefing.md`.
+
+### Stage 5 — Activate `papers-analysis-visualizer`
+
+**Before invoking the skill, check Notion readiness:**
+
+1. Read `.env` in the project root. If `NOTION_API_TOKEN` is set and non-empty, invoke with `skip-notion: false`:
+   ```
+   Skill(skill="papers-analysis-visualizer",
+         args="skip-notion: false; language: <en|zh>")
+   ```
+
+2. If `NOTION_API_TOKEN` is NOT set, **ask the user**:
+   > "Would you like to sync papers to a Notion database? This requires a free Notion integration (3-minute setup). [Y/n]"
+
+   - **If the user says YES**: show the setup guide from `papers-analysis-visualizer` SKILL.md (the 3-step guide under "User Setup"). Wait for the user to complete setup and confirm. Then invoke with `skip-notion: false`.
+   - **If the user says NO or skips**: invoke with `skip-notion: true`:
+     ```
+     Skill(skill="papers-analysis-visualizer",
+           args="skip-notion: true")
+     ```
+
+**Expected outputs:** `shared_data/visualizer_input.json`, `output/dashboard.html` (+ `output/notion_mapping.json` if Notion sync enabled).
 
 ---
 
@@ -175,7 +186,7 @@ If the user asks for ONE specific stage, do NOT run this router. Activate the su
 |-------------|----------------------|
 | "Just fetch papers on `<X>`" | `Skill(skill="data_collector", args="...")` |
 | "Rank what I already have" | `Skill(skill="paper_ranker", args="...")` |
-| "Summarize the top papers" | `Skill(skill="paper-summarizer", args="...")` |
+| "Summarize the top papers" | `Skill(skill="paper_summarizer", args="...")` |
 | "Rebuild the dashboard" | `Skill(skill="papers-analysis-visualizer", args="...")` |
 | "Regenerate the briefing" | `Skill(skill="briefing_report", args="...")` |
 
@@ -186,7 +197,7 @@ If the user asks for ONE specific stage, do NOT run this router. Activate the su
 - **Stage 1 returns 0 papers:** report "no new papers in date range" and stop. Do not run downstream stages.
 - **Any stage's `manifest.json.errors` is non-empty:** report errors verbatim, ask user whether to retry that stage.
 - **Stage 3 (your in-context summarization) — paper without abstract:** skip that paper, note it in `summarized_count`.
-- **Stage 4 — `dashboard.html` not produced:** report the file path that should exist and surface the underlying error from the sub-skill.
+- **Stage 5 — `dashboard.html` not produced:** report the file path that should exist and surface the underlying error from the sub-skill.
 - **`last_fetch.json` blocks re-runs (cross-date dedup ate everything):** advise the user to rename `shared_data/last_fetch.json` to `last_fetch.json.bak` and rerun Stage 1.
 
 Always surface failures to the user — never silently swallow.

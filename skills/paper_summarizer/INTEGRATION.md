@@ -8,7 +8,7 @@ The files below are self-contained and do not touch any teammate code.
 
 ```
 data_collector  →  (paper_ranker, stub)  →  paper_summarizer  →  papers-analysis-visualizer
-                                                              →  briefing-report
+                                                              →  briefing_report
 ```
 
 `papers-analysis-visualizer` expects its input to contain `one_line_summary`

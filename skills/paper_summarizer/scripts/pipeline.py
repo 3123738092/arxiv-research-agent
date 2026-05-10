@@ -1,4 +1,4 @@
-"""Agent-facing pipeline wrapper for the paper-summarizer Skill.
+"""Agent-facing pipeline wrapper for the paper_summarizer Skill.
 
 Mirrors the style of ``skills/data_collector/scripts/pipeline.py``: a thin
 ``run_pipeline(config)`` that the main agent can call without knowing the

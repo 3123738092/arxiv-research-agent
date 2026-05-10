@@ -100,7 +100,7 @@ def main(argv: list[str] | None = None) -> int:
                 "(looked for ranked_papers.json, then papers.json).",
                 file=sys.stderr,
             )
-            print("Run the ranker or data-collector first, or pass --input.", file=sys.stderr)
+            print("Run the ranker or data_collector first, or pass --input.", file=sys.stderr)
             return 2
 
     if not papers:

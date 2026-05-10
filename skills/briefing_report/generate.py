@@ -10,6 +10,7 @@ import json
 import math
 import os
 import re
+import sys
 from collections import Counter
 from datetime import datetime
 from pathlib import Path
@@ -17,7 +18,14 @@ from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 import numpy as np
 
-from ._io import (
+# Support both module invocation ("python -m skills.briefing_report.generate")
+# and direct script execution ("python generate.py").
+_here = Path(__file__).resolve().parent
+_project_root = _here.parents[2]  # generate.py -> briefing_report -> skills -> root
+if str(_project_root) not in sys.path:
+    sys.path.insert(0, str(_project_root))
+
+from skills.briefing_report._io import (
     SHARED_DATA as DATA_DIR,
     SkillInputMissingError,
     load_citation_edges,

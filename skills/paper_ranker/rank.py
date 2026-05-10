@@ -9,6 +9,7 @@ Usage:
 
 import argparse
 import json
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -149,7 +150,8 @@ def _load_embed_model():
     try:
         from sentence_transformers import SentenceTransformer
         _embed_model = SentenceTransformer(MODEL_NAME)
-    except Exception:
+    except Exception as _e:
+        print(f"[paper_ranker] sentence-transformers unavailable: {_e}", file=sys.stderr)
         _embed_model = None
     return _embed_model
 

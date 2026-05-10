@@ -57,7 +57,8 @@ def _check_embedding():
     try:
         from sentence_transformers import SentenceTransformer  # noqa: F401
         _EMBEDDING_AVAILABLE = True
-    except Exception:
+    except Exception as _e:
+        print(f"[embed] sentence-transformers unavailable: {_e}", file=sys.stderr)
         _EMBEDDING_AVAILABLE = False
     return _EMBEDDING_AVAILABLE
 

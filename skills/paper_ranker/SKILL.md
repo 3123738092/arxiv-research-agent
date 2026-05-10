@@ -35,7 +35,7 @@ Python scripts — do NOT use LLM for data processing.
 **Invoke when the user:**
 - Asks to rank/score papers: "哪些论文最重要" / "rank papers about X"
 - Wants to see top papers by influence: "show me the most important papers"
-- Triggers the daily briefing pipeline (as part of Skills 1→2→3→5→4)
+- Triggers the daily briefing pipeline (as part of Skills 1→2→3→4→5)
 
 **Do NOT invoke when the user:**
 - Wants to fetch new papers (delegate to Skill 1)

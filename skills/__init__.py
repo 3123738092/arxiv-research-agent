@@ -1,1 +1,1 @@
-"""Project skills package (data-collector, briefing-report, …)."""
+"""Project skills package (data_collector, briefing_report, …)."""

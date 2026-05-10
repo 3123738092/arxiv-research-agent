@@ -65,19 +65,36 @@ cd $PROJECT_DIR && python arxiv_agent.py report
 
 ### Stage 5 — papers-analysis-visualizer
 
-**Before building, check Notion readiness:**
+**Before building, you MUST ask the user about Notion.** Do not skip this step.
 
-1. Check if `NOTION_API_TOKEN` is set in `.env`. If set, also run Notion sync:
+1. Check if `NOTION_API_TOKEN` is set in `.env`. If set → run Notion sync + dashboard:
    ```bash
    cd $PROJECT_DIR/skills/papers-analysis-visualizer && python scripts/sync_to_notion.py --input "$SHARED_DATA/visualizer_input.json" --output "$SHARED_DATA/../output/notion_mapping.json"
+   cd $PROJECT_DIR/skills/papers-analysis-visualizer && python scripts/build_dashboard_html.py --input "$SHARED_DATA/visualizer_input.json" --output "$SHARED_DATA/../output/dashboard.html" --notion-mapping "$SHARED_DATA/../output/notion_mapping.json"
    ```
 
-2. If `NOTION_API_TOKEN` is NOT set, **ask the user** whether they want Notion sync. If yes, guide them through the 3-step setup (see `papers-analysis-visualizer/SKILL.md` User Setup section), then run the sync command above.
+2. If `NOTION_API_TOKEN` is NOT set, **stop and ask the user** in their language:
+   > "Would you like to sync papers to your Notion database? This requires a free Notion integration (3-minute setup). If you skip, only the HTML dashboard will be generated. [Y/n]"
 
-**Always build the dashboard (Notion is optional):**
-```bash
-cd $PROJECT_DIR/skills/papers-analysis-visualizer && python scripts/build_dashboard_html.py --input "$SHARED_DATA/visualizer_input.json" --output "$SHARED_DATA/../output/dashboard.html" --notion-mapping "$SHARED_DATA/../output/notion_mapping.json"
-```
+   - **If YES**: show the 3-step setup guide below. Wait for the user to complete it before running any commands.
+
+     **Step 1 — Create Integration:** Go to https://www.notion.so/my-integrations → New Integration → name it `Papers Analysis` → copy the `Internal Integration Secret`.
+
+     **Step 2 — Grant access:** In Notion, open the target page → `⋯` → Connections → add `Papers Analysis`. Copy the page ID from the URL (32-char before `?`).
+
+     **Step 3 — Configure:** Add to `.env`:
+     ```
+     NOTION_API_TOKEN=your_secret
+     NOTION_PARENT_PAGE_ID=your_page_id
+     ```
+     After the user confirms setup, run both sync and dashboard commands from step 1.
+
+   - **If NO**: build dashboard only:
+     ```bash
+     cd $PROJECT_DIR/skills/papers-analysis-visualizer && python scripts/build_dashboard_html.py --input "$SHARED_DATA/visualizer_input.json" --output "$SHARED_DATA/../output/dashboard.html"
+     ```
+
+**Expected outputs:** `shared_data/visualizer_input.json`, `output/dashboard.html` (+ `output/notion_mapping.json` if user opted into Notion sync).
 
 ## Output
 

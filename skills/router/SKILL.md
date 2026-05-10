@@ -141,11 +141,30 @@ Skill(skill="briefing_report",
 
 ### Stage 5 — Activate `papers-analysis-visualizer`
 
-The visualizer skill handles Notion prompting on its own — do NOT pass `skip-notion` args.
+**Before invoking, ask the user about Notion.** You MUST do this — do not skip.
 
-```
-Skill(skill="papers-analysis-visualizer")
-```
+1. Read `.env` in the project root. If `NOTION_API_TOKEN` is set → invoke the skill directly:
+   ```
+   Skill(skill="papers-analysis-visualizer")
+   ```
+
+2. If `NOTION_API_TOKEN` is NOT set, **stop and ask the user** in their language:
+   > "Would you like to sync papers to your Notion database? This requires a free Notion integration (3-minute setup). If you skip, only the HTML dashboard will be generated. [Y/n]"
+
+   - **If YES**: show the 3-step setup guide below (stop and wait — do not proceed):
+
+     **Step 1 — Create Integration:** Go to https://www.notion.so/my-integrations → New Integration → name it `Papers Analysis` → copy the `Internal Integration Secret` (starts with `ntn_` or `secret_`).
+
+     **Step 2 — Grant access:** In Notion, open the page where you want the paper database → top-right `⋯` → Connections → add `Papers Analysis`. Copy the page ID from the URL (the 32-char part before `?`).
+
+     **Step 3 — Configure:** Add to `.env`:
+     ```
+     NOTION_API_TOKEN=your_secret
+     NOTION_PARENT_PAGE_ID=your_page_id
+     ```
+     Reply "done" after completing the setup, then invoke `Skill(skill="papers-analysis-visualizer")`.
+
+   - **If NO**: invoke `Skill(skill="papers-analysis-visualizer")` directly (dashboard-only mode).
 
 **Expected outputs:** `shared_data/visualizer_input.json`, `output/dashboard.html` (+ `output/notion_mapping.json` if user opted into Notion sync).
 

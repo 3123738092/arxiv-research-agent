@@ -1,6 +1,6 @@
 ---
 name: paper_ranker
-description: "基于 PageRank + 兴趣匹配的论文排序。接收 Skill 1 产出的 papers.json + citations.json + embeddings，输出 rankings.json。当用户询问\"哪些论文最重要\"、\"帮我排序\"、\"rank papers\"时必须使用此 skill。"
+description: "Accepts papers.json, citations.json, and embeddings from the output of Skill 1, and outputs rankings.json. This skill must be used when the user asks \"which papers are the most important\", \"help me sort\", or \"rank papers\"."
 version: 1.0.0
 author: [your-name]
 agent_created: true

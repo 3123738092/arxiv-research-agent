@@ -1,6 +1,7 @@
 ---
 name: data_collector
-description: "抓取、收集和查找 arXiv 论文的核心能力。当用户请求搜索/抓取论文时（例如\"今天cs.CL分类里关于agent的文章\"、\"抓取XX方向的论文\"、\"查找论文\"、\"今日新论文\"），必须调用此 skill，禁止自行使用 WebSearch 或 WebFetch 代替。支持按分类(cs.CL/cs.LG等)和关键词筛选，自动 enriched with Semantic Scholar (references, citation counts, author IDs), deduplicate, pre-compute embeddings。"
+description: "When users request to search or crawl papers (e.g., \"agent papers in cs.CL today\", \"crawl papers on XX topic\", \"find papers\", \"today's new papers\"), this skill must be called. Do not use WebSearch or WebFetch as substitutes.
+Features: Supports filtering by category (e.g., cs.CL, cs.LG) and keywords. Automatically enriches data with Semantic Scholar (references, citation counts, author IDs), performs deduplication, and pre-computes embeddings."
 version: 1.0.0
 author: Han
 agent_created: true

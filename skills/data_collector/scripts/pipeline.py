@@ -10,9 +10,41 @@ Config JSON keys:
 Note: This script uses path self-healing — it works from any working directory.
 """
 
-# --- 路径自修复：确保无论从哪里调用都能正确导入 ---
+# --- 依赖自检 + 自动安装（在任何业务 import 之前执行）--------
 import sys
+import subprocess
 from pathlib import Path
+
+_PKGS = ["arxiv", "tenacity", "pydantic", "sentence-transformers", "requests", "numpy"]
+
+def _check_deps():
+    missing = []
+    for pkg in _PKGS:
+        try:
+            __import__(pkg.replace("-", "_"))
+        except ImportError:
+            missing.append(pkg)
+    if missing:
+        print(f"[依赖检查] 发现缺失包: {' '.join(missing)}，正在自动安装...")
+        for pkg in missing:
+            r = subprocess.run(
+                [sys.executable, "-m", "pip", "install", pkg, "-q"],
+                capture_output=True, text=True
+            )
+            if r.returncode == 0:
+                print(f"  ✓ {pkg} 安装成功")
+            else:
+                print(f"  ✗ {pkg} 安装失败: {r.stderr.strip()}")
+                sys.exit(1)
+        print("[依赖检查] 所有依赖已就绪")
+    else:
+        print("[依赖检查] 所有依赖已满足")
+
+_check_deps()
+del _check_deps, _PKGS  # 不污染全局命名空间（sys/subprocess/Path 后续仍需使用）
+# -------------------------------------------------------------
+
+# --- 路径自修复：确保无论从哪里调用都能正确导入 ---
 
 _current = Path(__file__).resolve()
 # scripts/ → data_collector/ → skills/ → arxiv-research-agent/ → skills/ → 根目录（向上4层）
@@ -32,6 +64,7 @@ from datetime import datetime
 from skills.data_collector.scripts.utils import (
     set_shared_data, save_json, short_hash,
 )
+from skills.data_collector.scripts import utils  # access SHARED_DATA via utils.SHARED_DATA after set_shared_data()
 from skills.data_collector.scripts.fetch_arxiv import fetch_arxiv_papers, filter_by_negative_keywords
 from skills.data_collector.scripts.dedup import dedup_papers
 from skills.data_collector.scripts.enrich_semantic_scholar import enrich_papers
@@ -134,18 +167,18 @@ def run_pipeline(config):
         "warnings": warnings,
         "elapsed_seconds": elapsed,
     }
-    save_json(SHARED_DATA / "manifest.json", manifest)
+    save_json(utils.SHARED_DATA / "manifest.json", manifest)
 
     return manifest
 
 
 def _write_outputs(validated):
     """Write all validated data files to shared_data/."""
-    save_json(SHARED_DATA / "papers.json", validated["papers"])
-    save_json(SHARED_DATA / "authors.json", validated["authors"])
-    save_json(SHARED_DATA / "affiliations.json", validated["affiliations"])
+    save_json(utils.SHARED_DATA / "papers.json", validated["papers"])
+    save_json(utils.SHARED_DATA / "authors.json", validated["authors"])
+    save_json(utils.SHARED_DATA / "affiliations.json", validated["affiliations"])
 
-    edges_dir = SHARED_DATA / "edges"
+    edges_dir = utils.SHARED_DATA / "edges"
     edges_dir.mkdir(parents=True, exist_ok=True)
     save_json(edges_dir / "citations.json", validated["edges"]["citations"])
     save_json(edges_dir / "coauthorship.json", validated["edges"]["coauthorship"])
@@ -175,7 +208,7 @@ def _write_legacy_raw_papers(papers):
         }
         for p in papers
     ]
-    save_json(SHARED_DATA / "raw_papers.json", legacy)
+    save_json(utils.SHARED_DATA / "raw_papers.json", legacy)
 
 
 def main():

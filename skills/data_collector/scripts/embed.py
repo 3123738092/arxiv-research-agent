@@ -7,7 +7,7 @@ Outputs binary .npy for fast loading by downstream Skills.
 import sys
 import numpy as np
 from pathlib import Path
-from .utils import SHARED_DATA
+from . import utils  # 引用式导入，运行时解析 SHARED_DATA
 
 # Windows: torch._dynamo imports the Unix-only 'pwd' module.
 # Inject a minimal stub so sentence-transformers can load on Windows.
@@ -40,7 +40,7 @@ if sys.platform == "win32" and "pwd" not in sys.modules:
     _pwd.struct_passwd = _Passwd
     sys.modules["pwd"] = _pwd
 
-EMBED_DIR = SHARED_DATA / "embeddings"
+EMBED_DIR = utils.SHARED_DATA / "embeddings"
 VECS_FILE = EMBED_DIR / "paper_vecs.npy"
 INDEX_FILE = EMBED_DIR / "index.json"
 

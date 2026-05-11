@@ -261,13 +261,36 @@ the agent should read them **on demand** when it needs specific information:
 ## Quick Start
 
 ```bash
-# Install dependencies
-pip install arxiv tenacity pydantic sentence-transformers requests numpy
+# ── 依赖检查（首次使用必须执行）────────────────────────────────
+# 检查当前 Python 环境是否满足所有依赖
+python -c "
+import sys, subprocess
+pkgs = ['arxiv', 'tenacity', 'pydantic', 'sentence-transformers', 'requests', 'numpy']
+missing = [p for p in pkgs if subprocess.run([sys.executable, '-c', f'import {p}'], capture_output=True).returncode != 0]
+if missing:
+    print(f'[依赖检查] 缺少以下包，请先安装：pip install {\" \".join(missing)}')
+    sys.exit(1)
+print('[依赖检查] 所有依赖已满足')
+"
+# ──────────────────────────────────────────────────────────────
 
 # Run pipeline with config (can be called from any directory)
-python /path/to/skills/arxiv-research-agent/skills/data_collector/scripts/pipeline.py \
+python /path/to/skills/data_collector/scripts/pipeline.py \
   --config /path/to/shared_data/config.json
 ```
+
+**依赖说明：**
+
+| 包 | 用途 | 缺失后果 |
+|----|------|---------|
+| `arxiv` | arXiv API 抓取 | 无法运行 |
+| `tenacity` | API 重试（指数退避） | 遇到 503 时直接失败 |
+| `pydantic` | 输出 Schema 校验 | 跳过校验，直接写入 |
+| `sentence-transformers` | 论文向量编码 | Embedding 阶段跳过，novelty 排序失效 |
+| `requests` | HTTP 请求 | 无法调用 S2 API |
+| `numpy` | 向量存储 | 无法写入 .npy 向量文件 |
+
+> ⚠️ **首次使用前必须检查依赖**。缺失任一包都可能引发 ImportError 或静默跳过关键阶段。如遇 Embedding 跳过，检查是否装了 `sentence-transformers`。
 
 **Shared data output path — priority order:**
 

@@ -1,5 +1,5 @@
 ---
-name: router
+name: arxiv-research-agent
 description: >
   Daily arXiv Research Briefing Agent — host-LLM driven multi-skill agent that
   fetches, ranks, summarizes, visualizes, and reports on daily arXiv papers.

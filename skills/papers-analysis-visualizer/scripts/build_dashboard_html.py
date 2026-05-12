@@ -34,36 +34,14 @@ def load_optional_json(path: str) -> dict:
 def main():
     parser = argparse.ArgumentParser(description="生成 Topic Exploration Dashboard HTML")
     parser.add_argument("--input", required=True, help="论文 JSON 文件路径")
-    parser.add_argument("--output", default=None, help="输出 HTML 路径（默认: <data-dir>/output/dashboard.html）")
-    parser.add_argument("--data-dir", default=None, help="workspace 根目录（用于解析相对路径）")
+    parser.add_argument("--output", default="output/dashboard.html", help="输出 HTML 路径")
     parser.add_argument("--history", default=None, help="可选：历史趋势数据 JSON")
-    parser.add_argument("--notion-mapping", default=None,
-                        help="paper_id → notion_url 映射文件（默认: <data-dir>/data/notion_mapping.json）")
+    parser.add_argument("--notion-mapping", default="data/notion_mapping.json",
+                        help="paper_id → notion_url 映射文件（sync_to_notion 产出的）")
     args = parser.parse_args()
 
-    # 解析 data-dir 作为基准路径
-    base_dir = Path(args.data_dir) if args.data_dir else Path.cwd()
-    base_dir = base_dir.resolve()
-
-    # 解析 input 路径（优先绝对路径）
-    input_path = Path(args.input)
-    if not input_path.is_absolute():
-        input_path = base_dir / input_path
-
-    # 解析 output 路径
-    output_default = base_dir / "output" / "dashboard.html"
-    output_path = Path(args.output) if args.output else output_default
-    if not output_path.is_absolute():
-        output_path = base_dir / output_path
-
-    # 解析 notion-mapping 路径
-    notion_default = base_dir / "data" / "notion_mapping.json"
-    notion_path = Path(args.notion_mapping) if args.notion_mapping else notion_default
-    if not notion_path.is_absolute():
-        notion_path = base_dir / notion_path
-
     # 加载 & 加工论文
-    with open(input_path, "r", encoding="utf-8") as f:
+    with open(args.input, "r", encoding="utf-8") as f:
         raw_papers = json.load(f)
     papers = enrich_papers(raw_papers)
     print(f"[Load] {len(papers)} 篇论文（已计算 recommendation）")
@@ -77,7 +55,7 @@ def main():
     )
 
     # 可选数据
-    notion_map = load_optional_json(str(notion_path))
+    notion_map = load_optional_json(args.notion_mapping)
     trends = load_optional_json(args.history)
 
     print(f"[Data] 关键词节点: {len(graph_data['nodes'])} 个, 边: {len(graph_data['edges'])} 条")
@@ -97,12 +75,12 @@ def main():
     )
 
     # 写输出
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(output_path, "w", encoding="utf-8") as f:
+    os.makedirs(os.path.dirname(args.output) or ".", exist_ok=True)
+    with open(args.output, "w", encoding="utf-8") as f:
         f.write(html)
 
-    print(f"[File] Dashboard 已保存: {output_path}")
-    print(f"       浏览器直接打开即可 (file:///{str(output_path).replace(os.sep, '/')})")
+    print(f"[File] Dashboard 已保存: {args.output}")
+    print(f"       浏览器直接打开即可 (file:///{os.path.abspath(args.output).replace(os.sep, '/')})")
 
 
 if __name__ == "__main__":

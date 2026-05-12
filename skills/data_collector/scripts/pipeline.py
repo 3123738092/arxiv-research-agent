@@ -67,8 +67,8 @@ from skills.data_collector.scripts.utils import (
 from skills.data_collector.scripts import utils  # access SHARED_DATA via utils.SHARED_DATA after set_shared_data()
 from skills.data_collector.scripts.fetch_arxiv import fetch_arxiv_papers, filter_by_negative_keywords
 from skills.data_collector.scripts.dedup import dedup_papers
-from skills.data_collector.scripts.enrich_semantic_scholar import enrich_papers
 from skills.data_collector.scripts.build_graph_edges import build_all_edges
+from skills.data_collector.scripts.build_similarity_graph import build_similarity_graph
 from skills.data_collector.scripts.embed import embed_papers
 from skills.data_collector.scripts.validate import validate_all
 
@@ -114,18 +114,23 @@ def run_pipeline(config):
     papers, dedup_stats = dedup_papers(papers)
     warnings.append(f"Dedup: {dedup_stats}")
 
-    # Stage 4: Enrich via Semantic Scholar
-    papers, citations_edges, authors_list, affiliations_list, enrich_warnings = enrich_papers(papers)
-    warnings.extend(enrich_warnings)
+    # Stage 4: Build co-authorship / author edges (from arXiv metadata, no S2 needed)
+    _edges_result = build_all_edges(papers, authors_list=None, citations_edges=[])
+    papers = _edges_result.pop("papers", papers)
+    authors_list = _edges_result["authors_list"]
+    affiliations_list = []  # no S2 — affiliations derived from arXiv metadata only
 
-    # Stage 5: Build graph edges
-    edges = build_all_edges(papers, authors_list, citations_edges)
-    papers = edges.pop("papers", papers)
-    authors_list = edges.pop("authors_list", authors_list)
-
-    # Stage 6: Compute embeddings
+    # Stage 5: Compute embeddings (needed before similarity graph)
     vecs, embed_index, embed_warnings = embed_papers(papers)
     warnings.extend(embed_warnings)
+
+    # Stage 6: Build semantic similarity graph from embeddings (replaces S2 citation graph)
+    papers_index = {p["arxiv_id"]: p for p in papers}
+    similarity_edges = build_similarity_graph(papers_index, (vecs, embed_index))
+
+    # Build complete edges dict for validation and output
+    edges = _edges_result  # contains: coauthorship, author_paper
+    edges["similarity"] = similarity_edges
 
     # Stage 7: Validate
     validated, validation_errors = validate_all(
@@ -135,7 +140,7 @@ def run_pipeline(config):
         errors.extend(validation_errors)
 
     # Stage 7b: Write all output files
-    _write_outputs(validated)
+    _write_outputs(validated, similarity_edges)
 
     # Stage 7c: Write legacy view
     _write_legacy_raw_papers(validated["papers"])
@@ -148,15 +153,13 @@ def run_pipeline(config):
         "params": config,
         "source_status": {
             "arxiv": "ok" if fetch_count > 0 else "empty",
-            "semantic_scholar": "ok" if not enrich_warnings else "partial",
+            "similarity_graph": "ok" if similarity_edges else "empty",
             "embeddings": "ok" if not embed_warnings else "skipped",
         },
         "counts": {
             "fetched": fetch_count,
             "after_dedup": dedup_stats["output_count"],
-            "with_s2_data": sum(1 for p in validated["papers"] if p.get("s2_paper_id")),
-            "citation_edges": len(validated["edges"]["citations"]),
-            "citation_edges_external": len(validated["edges"].get("citations_external", [])),
+            "similarity_edges": len(similarity_edges),
             "coauthorship_edges": len(validated["edges"]["coauthorship"]),
             "author_paper_edges": len(validated["edges"]["author_paper"]),
             "authors": len(validated["authors"]),
@@ -172,7 +175,7 @@ def run_pipeline(config):
     return manifest
 
 
-def _write_outputs(validated):
+def _write_outputs(validated, similarity_edges):
     """Write all validated data files to shared_data/."""
     save_json(utils.SHARED_DATA / "papers.json", validated["papers"])
     save_json(utils.SHARED_DATA / "authors.json", validated["authors"])
@@ -180,13 +183,10 @@ def _write_outputs(validated):
 
     edges_dir = utils.SHARED_DATA / "edges"
     edges_dir.mkdir(parents=True, exist_ok=True)
-    save_json(edges_dir / "citations.json", validated["edges"]["citations"])
+    # Write similarity edges (replaces citation graph)
+    save_json(edges_dir / "similarity.json", similarity_edges)
     save_json(edges_dir / "coauthorship.json", validated["edges"]["coauthorship"])
     save_json(edges_dir / "author_paper.json", validated["edges"]["author_paper"])
-
-    if validated["edges"].get("citations_external"):
-        save_json(edges_dir / "citations_external.json",
-                  validated["edges"]["citations_external"])
 
 
 def _write_legacy_raw_papers(papers):
@@ -229,7 +229,21 @@ def main():
     if args.shared_data:
         set_shared_data(args.shared_data)
 
-    with open(args.config, encoding="utf-8") as f:
+    # Support inline JSON config on Windows (where /dev/stdin doesn't exist)
+    # If --config starts with '{', treat it as the JSON content directly
+    config_arg = args.config.strip()
+    if config_arg.startswith("{"):
+        import tempfile
+        import atexit
+        _tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8")
+        _tmp.write(config_arg)
+        _tmp.close()
+        atexit.register(lambda: Path(_tmp.name).unlink(missing_ok=True))
+        config_path = _tmp.name
+    else:
+        config_path = config_arg
+
+    with open(config_path, encoding="utf-8") as f:
         config = json.load(f)
 
     manifest = run_pipeline(config)

@@ -40,9 +40,23 @@ if sys.platform == "win32" and "pwd" not in sys.modules:
     _pwd.struct_passwd = _Passwd
     sys.modules["pwd"] = _pwd
 
-EMBED_DIR = utils.SHARED_DATA / "embeddings"
-VECS_FILE = EMBED_DIR / "paper_vecs.npy"
-INDEX_FILE = EMBED_DIR / "index.json"
+EMBED_DIR_NAME = "embeddings"
+VECS_FILE_NAME = "paper_vecs.npy"
+INDEX_FILE_NAME = "index.json"
+
+
+def _get_embed_dir():
+    """Runtime resolved — respects any set_shared_data() call made before embed_papers()."""
+    return utils.SHARED_DATA / EMBED_DIR_NAME
+
+
+def _get_vecs_file():
+    return _get_embed_dir() / VECS_FILE_NAME
+
+
+def _get_index_file():
+    return _get_embed_dir() / INDEX_FILE_NAME
+
 
 MODEL_NAME = "all-MiniLM-L6-v2"
 
@@ -95,10 +109,11 @@ def compute_embeddings(papers, model=None):
 
 def save_embeddings(vecs, index):
     """Save embeddings and index to disk."""
-    EMBED_DIR.mkdir(parents=True, exist_ok=True)
-    np.save(VECS_FILE, vecs)
+    embed_dir = _get_embed_dir()
+    embed_dir.mkdir(parents=True, exist_ok=True)
+    np.save(_get_vecs_file(), vecs)
     from .utils import save_json
-    save_json(INDEX_FILE, index)
+    save_json(_get_index_file(), index)
 
 
 def embed_papers(papers):

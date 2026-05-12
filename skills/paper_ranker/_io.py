@@ -3,13 +3,40 @@
 No cross-skill imports. Each skill owns its data loading.
 """
 import json
+import os
 from pathlib import Path
 from typing import Dict, Tuple
 
 import numpy as np
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-SHARED_DATA = PROJECT_ROOT / "shared_data"
+
+
+def _find_workspace_shared_data():
+    """Search upward from PROJECT_ROOT for a workspace's shared_data/.
+
+    Looks for: ~/.workbuddy/<workspace>/shared_data/
+    Returns the most recently modified workspace shared_data if found.
+    """
+    workbuddy_root = PROJECT_ROOT  # ~/.workbuddy/
+    if not workbuddy_root.exists():
+        return PROJECT_ROOT / "shared_data"
+    candidates = []
+    for sub in workbuddy_root.iterdir():
+        candidate = sub / "shared_data"
+        if candidate.is_dir():
+            candidates.append((sub.stat().st_mtime, candidate))
+    if candidates:
+        candidates.sort(key=lambda x: x[0], reverse=True)
+        return candidates[0][1]
+    return PROJECT_ROOT / "shared_data"
+
+
+# Priority: WORKBUDDY_SHARED_DATA env > auto-detected workspace > ~/.workbuddy/shared_data
+SHARED_DATA = Path(os.environ.get(
+    "WORKBUDDY_SHARED_DATA",
+    str(_find_workspace_shared_data())
+))
 
 
 class SkillInputMissingError(FileNotFoundError):
@@ -18,6 +45,11 @@ class SkillInputMissingError(FileNotFoundError):
 
 def _resolve(path: str, data_dir=None) -> Path:
     base = Path(data_dir) if data_dir else SHARED_DATA
+    # If data_dir is a workspace root (contains shared_data/ subdir), use that instead
+    if data_dir:
+        candidate = Path(data_dir)
+        if candidate.name != "shared_data" and (candidate / "shared_data").is_dir():
+            base = candidate / "shared_data"
     return base / path
 
 
@@ -37,12 +69,36 @@ def load_papers(data_dir=None) -> Dict[str, dict]:
 
 
 def load_citation_graph(data_dir=None):
+    """Load citation or similarity graph from shared_data/.
+
+    Tries edges/citations.json first (S2 citation graph), then falls back to
+    edges/similarity.json (semantic similarity graph). Both use the same
+    {from, to} edge schema.
+    """
     import networkx as nx
-    edges = _load_json("edges/citations.json", data_dir)
-    g = nx.DiGraph()
-    for edge in edges:
-        g.add_edge(edge["from"], edge["to"])
-    return g
+
+    # Try citation graph first (S2-based)
+    citations_path = _resolve("edges/citations.json", data_dir)
+    if citations_path.exists():
+        edges = _load_json("edges/citations.json", data_dir)
+        if edges:
+            g = nx.DiGraph()
+            for edge in edges:
+                g.add_edge(edge["from"], edge["to"])
+            return g
+
+    # Fall back to similarity graph (embedding-based)
+    sim_path = _resolve("edges/similarity.json", data_dir)
+    if sim_path.exists():
+        edges = _load_json("edges/similarity.json", data_dir)
+        if edges:
+            g = nx.DiGraph()
+            for edge in edges:
+                g.add_edge(edge["from"], edge["to"])
+            return g
+
+    # Empty graph as last resort
+    return nx.DiGraph()
 
 
 def load_embeddings(data_dir=None) -> Tuple[np.ndarray, dict]:

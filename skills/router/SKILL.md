@@ -1,7 +1,21 @@
 ---
 name: router
-description: 'Daily arXiv research briefing agent. Fetches today''s papers from arXiv (cs.CL/cs.LG/cs.CV/cs.AI/cs.MA), ranks them by PageRank + user interest + novelty, summarizes the top-N in-context, builds an interactive HTML dashboard, and renders a Markdown briefing. Use this skill for ANY request that asks for a curated daily research summary across multiple papers. Trigger phrases include: - "今日 arxiv 简报" / "今天的 arxiv" / "抓今天的论文" / "做个论文简报" - "daily arxiv briefing" / "today''s papers on X" / "what''s new on arxiv today" - "arxiv research digest" / "morning research digest" / "summarize today''s papers" - "build a research briefing for <topic>" / "give me the top papers on <topic>" This skill is a ROUTER. It does not run code itself — it activates 5 sub-skills in order via the Skill tool. Each sub-skill owns its own execution details (paths, env vars, commands). Skill 3 (summarization) is performed BY YOU, the host LLM, in-context; no external LLM API is called. The 5 sub-skills live alongside this one in the same skills/ directory.'
+description: |
+  Daily arXiv research briefing agent. Fetches today's papers from arXiv (cs.CL/cs.LG/cs.CV/cs.AI/cs.MA),
+  ranks them by PageRank + user interest + novelty, summarizes the top-N in-context, builds an interactive
+  HTML dashboard, and renders a Markdown briefing. Use this skill for ANY request that asks for a curated
+  daily research summary across multiple papers.
 
+  Trigger phrases include:
+  - "今日 arxiv 简报" / "今天的 arxiv" / "抓今天的论文" / "做个论文简报"
+  - "daily arxiv briefing" / "today's papers on X" / "what's new on arxiv today"
+  - "arxiv research digest" / "morning research digest" / "summarize today's papers"
+  - "build a research briefing for <topic>" / "give me the top papers on <topic>"
+
+  This skill is a ROUTER. It does not run code itself — it activates 5 sub-skills in order via
+  the Skill tool. Each sub-skill owns its own execution details (paths, env vars, commands).
+  Skill 3 (summarization) is performed BY YOU, the host LLM, in-context; no external LLM API is called.
+  The 5 sub-skills live alongside this one in the same skills/ directory.
 version: 2.1.0
 author: Han
 tags: [arxiv, agent, research, briefing, daily-digest, social-network-analysis, pagerank, llm, router]
@@ -65,16 +79,43 @@ Activate each one with `Skill(skill="<name>", args="<parameters in natural langu
 
 ## Pipeline recipe (5 stages, sequential)
 
-Run the stages **in order**. After each stage, verify its outputs exist in `shared_data/` before moving to the next. If a stage fails, surface the error to the user and stop — do not run downstream stages on bad data.
+**Path configuration — RECOMMENDED approach: set `WORKBUDDY_SHARED_DATA` once before running any stage.**
+
+```bash
+# Windows (Git Bash)
+export WORKBUDDY_SHARED_DATA="C:/Users/31237/WorkBuddy/2026-05-12-task-29/shared_data"
+
+# 然后所有 5 个 stage 无需额外路径参数，自动读写同一目录
+```
+
+**`--data-dir` vs `--shared-data` argument semantics per stage:**
+
+| Stage | Recommended argument | What it points to |
+|-------|---------------------|-------------------|
+| Stage 1 `data_collector` | `--shared-data` | Full `shared_data/` directory |
+| Stage 2 `paper_ranker` | `--data-dir` (auto-resolves workspace root → `shared_data/`) | Either workspace root or `shared_data/` directly |
+| Stage 3 `paper_summarizer` | `--shared-data` | `shared_data/` directory |
+| Stage 4 `briefing_report` | `--data-dir` | Either workspace root or `shared_data/` directly |
+| Stage 5 `papers-analysis-visualizer` | `--workspace` (for .env) + `--data-dir` (for paths) | Workspace root |
 
 ### Stage 1 — Activate `data_collector`
+
+> **Windows 兼容性**：不要直接传内联 JSON（PowerShell 转义复杂，容易失败）。正确做法是先写入临时配置文件：
+> ```bash
+> # 写 config 文件
+> python -c "import json; ..."
+> # 然后用 --config 指向文件
+> python scripts/pipeline.py --shared-data "..." --config /path/to/config.json
+> ```
 
 Pass the parsed `categories`, `keywords`, and `date_range` (today's date by default).
 
 ```
 Skill(skill="data_collector",
-      args="categories: <cats>; keywords: <kws>; date_range: today (<YYYY-MM-DD>)")
+      args="categories: <cats>; keywords: <kws>; date_range: today (<YYYY-MM-DD>); workspace: <path/to/workspace>")
 ```
+
+**Path:** Uses `--shared-data` argument internally. If `WORKBUDDY_SHARED_DATA` env is set, uses it directly.
 
 **Expected outputs:** `shared_data/papers.json`, `authors.json`, `edges/*.json`, `embeddings/*`, `manifest.json`.
 
@@ -84,12 +125,14 @@ Skill(skill="data_collector",
 
 ### Stage 2 — Activate `paper_ranker`
 
-Pass the user's `interest` text.
+Pass the user's `interest` text and workspace path.
 
 ```
 Skill(skill="paper_ranker",
-      args="interest: <natural-language interest text>")
+      args="interest: <natural-language interest text>; workspace: <path/to/workspace>")
 ```
+
+**Path:** Reads from `<workspace>/shared_data/`. Supports `WORKBUDDY_SHARED_DATA` env var and `--data-dir` argument. **Tip: `--data-dir` can point to workspace root — it auto-detects `shared_data/` subdirectory.**
 
 **Expected outputs:** `shared_data/rankings.json`, `shared_data/ranked_papers.json`.
 
@@ -99,8 +142,10 @@ This sub-skill has a **prepare → host-LLM → finalize** flow. Activate it onc
 
 ```
 Skill(skill="paper_summarizer",
-      args="top-n: <N>; language: <en|zh>")
+      args="top-n: <N>; language: <en|zh>; workspace: <path/to/workspace>")
 ```
+
+**Path:** Both `prepare` and `finalize` scripts support `--shared-data`. Falls back to `WORKBUDDY_SHARED_DATA` env.
 
 The sub-skill will:
 1. Run its `prepare` script → writes `shared_data/summarize_request.json`.
@@ -120,8 +165,10 @@ Write either a bare list or the canonical envelope `{count, summarized_count, mo
 
 ```
 Skill(skill="briefing_report",
-      args="language: <en|zh>")
+      args="language: <en|zh>; workspace: <path/to/workspace>")
 ```
+
+**Path:** Reads from `<workspace>/shared_data/`. Supports `WORKBUDDY_SHARED_DATA` env and `--data-dir` argument.
 
 **Expected output:** `shared_data/briefing.md`.
 
@@ -129,9 +176,10 @@ Skill(skill="briefing_report",
 
 **Before invoking, ask the user about Notion.** You MUST do this — do not skip.
 
-1. Read `.env` in the project root. If `NOTION_API_TOKEN` is set → invoke the skill directly:
+1. Read `.env` in the project root. If `NOTION_API_TOKEN` is set → invoke the skill directly with workspace path:
    ```
-   Skill(skill="papers-analysis-visualizer")
+   Skill(skill="papers-analysis-visualizer",
+         args="workspace: <path/to/workspace>")
    ```
 
 2. If `NOTION_API_TOKEN` is NOT set, **stop and ask the user** in their language:
@@ -148,11 +196,21 @@ Skill(skill="briefing_report",
      NOTION_API_TOKEN=your_secret
      NOTION_PARENT_PAGE_ID=your_page_id
      ```
-     Reply "done" after completing the setup, then invoke `Skill(skill="papers-analysis-visualizer")`.
+     Reply "done" after completing the setup, then invoke with workspace:
+     ```
+     Skill(skill="papers-analysis-visualizer",
+           args="workspace: <path/to/workspace>")
+     ```
 
-   - **If NO**: invoke `Skill(skill="papers-analysis-visualizer")` directly (dashboard-only mode).
+   - **If NO**: invoke directly with workspace path:
+     ```
+     Skill(skill="papers-analysis-visualizer",
+           args="workspace: <path/to/workspace>")
+     ```
 
-**Expected outputs:** `shared_data/visualizer_input.json`, `output/dashboard.html` (+ `output/notion_mapping.json` if user opted into Notion sync).
+**Path:** Both `sync_to_notion` and `build_dashboard_html` scripts support `--data-dir` for resolving relative paths (`--input`, `--output`).
+
+**Expected outputs:** `<workspace>/output/dashboard.html` (+ `<workspace>/data/notion_mapping.json` if user opted into Notion sync).
 
 ---
 

@@ -1,6 +1,6 @@
 ---
 name: paper_ranker
-description: "Accepts papers.json, citations.json, and embeddings from the output of Skill 1, and outputs rankings.json. This skill must be used when the user asks \"which papers are the most important\", \"help me sort\", or \"rank papers\"."
+description: "基于 PageRank + 兴趣匹配的论文排序。接收 Skill 1 产出的 papers.json + similarity.json + embeddings，输出 rankings.json。当用户询问\"哪些论文最重要\"、\"帮我排序\"、\"rank papers\"时必须使用此 skill。"
 version: 1.0.0
 author: [your-name]
 agent_created: true
@@ -49,8 +49,8 @@ Python scripts — do NOT use LLM for data processing.
 | Field | Type | Source | Description |
 |-------|------|--------|-------------|
 | `papers.json` | File | Skill 1 | Paper fact table with arxiv_id, title, abstract, citation_count, embedding_row |
-| `edges/citations.json` | File | Skill 1 | Citation edge table: `[{from, to}]` |
-| `embeddings/paper_vecs.npy` + `index.json` | Files | Skill 1 | Pre-computed text embeddings (384-dim) |
+| `edges/similarity.json` | File | Skill 1 | Semantic similarity edge table (top-K cosine neighbors, threshold=0.2): `[{from, to, weight}]`. Falls back to `edges/citations.json` (S2 citation edges) if not present. |
+| `embeddings/paper_vecs.npy` + `index.json` | Files | Skill 1 | Pre-computed text embeddings (384-dim, all-MiniLM-L6-v2) |
 
 ## Optional Inputs
 
@@ -64,28 +64,25 @@ Python scripts — do NOT use LLM for data processing.
 
 ## Core Algorithm
 
-### 1. PageRank on Citation Graph (with Embedding Similarity Fallback)
+### 1. PageRank on Similarity Graph
 
-**Primary**: Build a directed graph from citation edges (`citing_paper → cited_paper`).
+**Primary**: Build an undirected graph from `edges/similarity.json` (semantic similarity edges: each paper connects to its top-K=5 most similar peers with cosine similarity > 0.2).
 Run NetworkX PageRank (α=0.85) to compute each paper's **structural influence** within the local paper set.
 
-**Same-day fallback**: arXiv papers published today are NOT yet indexed by Semantic Scholar
-(no citation counts, no reference lists). The citation graph will have 0 edges.
-In this case, Skill 2 automatically builds a **topic proximity graph** from paper
-embeddings — each paper connects to its top-5 semantically similar peers — and runs
-PageRank on this graph instead.
+**Fallback**: If `edges/similarity.json` is absent, `load_citation_graph()` falls back to `edges/citations.json` (Semantic Scholar citation edges) if available.
 
 **SNA significance**: PageRank identifies "authoritative" papers — those cited by many others
 (real graph) or topically central papers (similarity graph). This captures the *network effect*
 that pure text similarity misses.
 
-### 2. Interest Similarity (Embedding)
+### 2. Interest Similarity (Hybrid: Embedding + BM25)
 
-Encode user interest text with `all-MiniLM-L6-v2` (same model as Skill 1).
-Compute cosine similarity between the user vector and each paper's embedding.
-Scale to 0–10 range.
+**Formula**: `interest_score = 0.7 × embedding_similarity + 0.3 × BM25`
 
-**Fallback**: if embeddings are unavailable (Skill 1 embedding stage was skipped), interest scoring is set to 0 and only PageRank + novelty are used.
+- **Embedding component**: cosine similarity between user interest text encoded by `all-MiniLM-L6-v2` and each paper's pre-computed embedding. Scale 0–10.
+- **BM25 component**: `sklearn TfidfVectorizer(sublinear_tf=True)` applied to title + abstract corpus — equivalent to Okapi BM25 standard formula. Particularly effective for new terms, benchmark names, and model names that embedding models may under-index.
+
+**Fallback**: if embeddings are unavailable, pure BM25 (weight 1.0) is used. If BM25 also fails, returns 0.
 
 ### 3. Novelty Scoring
 
@@ -175,8 +172,20 @@ python -m skills.paper_ranker.rank --interest "LLM agents" --alpha 0.3 --beta 0.
 
 1. **No implementation imports from other skills** — reads only via local `_io.py`
 2. **Idempotent** — re-running overwrites `rankings.json`
-3. **Graceful degradation** — works even without embeddings (interest scoring falls back to 0)
+3. **Graceful degradation** — works even without embeddings (interest scoring falls back to pure BM25)
 4. **Handles isolated nodes** — papers with no citation edges get PageRank = 0, not omitted
+
+---
+
+## Dependencies
+
+| 包 | 用途 | 缺失后果 |
+|----|------|---------|
+| `networkx` | PageRank 计算、图构建 | 无法运行 |
+| `numpy` | 向量运算 | 无法运行 |
+| `sentence-transformers` | Embedding 编码 | Embedding similarity 降级为 0，BM25 单独支撑 interest_score |
+| `scikit-learn` | BM25 (TfidfVectorizer sublinear_tf=True) | 无法运行 |
+| `torch` | sentence-transformers 依赖 | 模型加载失败（参见上方 sentence-transformers 行） |
 
 ---
 

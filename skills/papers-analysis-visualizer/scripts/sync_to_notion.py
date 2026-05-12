@@ -16,27 +16,12 @@ from dotenv import load_dotenv
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from compute_analytics import enrich_papers
 
-# ── 路径自修复：向上查找 .env 文件 ────────────────────────────
-# 搜索链：scripts/ → visualizer/ → skills/ → ~/.workbuddy/ → cwd/
-_script_dir = Path(__file__).resolve().parents  # tuple of parent dirs
-_search_paths = [
-    Path.cwd() / ".env",                        # 从调用时的工作目录
-    _script_dir[0] / ".env",                    # visualizer/ 目录
-    _script_dir[1] / ".env",                    # skills/ 目录
-    Path.home() / ".workbuddy" / ".env",        # ~/.workbuddy/
-]
-for _p in _search_paths:
-    if _p.exists():
-        load_dotenv(_p)
-        print(f"[Env] 已加载: {_p}")
-        break
-else:
-    print("[Env] 未找到 .env 文件，将依赖环境变量或命令行参数")
-# ──────────────────────────────────────────────────────────────
-
-NOTION_TOKEN = os.getenv("NOTION_API_TOKEN")
-NOTION_DATABASE_ID = os.getenv("NOTION_DATABASE_ID")      # optional：已有数据库则直接用
-PARENT_PAGE_ID = os.getenv("NOTION_PARENT_PAGE_ID")       # optional：自动创建数据库时使用
+# ── 路径自修复：.env 文件由 CLI 参数或 main() 中的搜索链加载 ─────
+# （不在模块级执行，避免 import 时过早搜索导致遗漏 --workspace 路径）
+# 注意：NOTION_TOKEN / NOTION_DATABASE_ID / PARENT_PAGE_ID 在 main() 里读取（dotenv 加载之后）
+NOTION_TOKEN = None  # 模块级占位，main() 中 load_dotenv 后重新赋值
+NOTION_DATABASE_ID = None
+PARENT_PAGE_ID = None
 
 HEADERS = {
     "Authorization": f"Bearer {NOTION_TOKEN}",
@@ -136,7 +121,7 @@ def build_properties(paper):
         "Title": {
             "title": [{"text": {"content": paper["title"]}}]
         },
-        "URL": {"url": paper.get("url", "")},
+        "URL": {"url": paper.get("url") or None},
         "Paper ID": {
             "rich_text": [{"text": {"content": paper["paper_id"]}}]
         },
@@ -221,18 +206,65 @@ def sync_papers(database_id, papers):
 
 
 # ── CLI 入口 ────────────────────────────────────────────────
+_script_dir = Path(__file__).resolve().parents  # main() 中 .env 搜索链用到
 
 def main():
     parser = argparse.ArgumentParser(description="同步论文数据到 Notion 数据库")
     parser.add_argument("--input", required=True, help="输入 JSON 文件路径")
-    parser.add_argument("--output", default="data/notion_mapping.json",
-                        help="输出 paper_id→notion_url 映射文件路径")
+    parser.add_argument("--output", default=None,
+                        help="输出 paper_id→notion_url 映射文件路径（默认: <data-dir>/data/notion_mapping.json）")
     parser.add_argument("--db-title", default=None,
                         help="Notion 数据库标题（不传则默认为「论文库」）")
+    parser.add_argument("--workspace", default=None,
+                        help="工作区根目录，用于查找 .env 文件")
+    parser.add_argument("--data-dir", default=None,
+                        help="workspace 根目录，用于解析 --input / --output 相对路径")
     args = parser.parse_args()
 
+    # ── 基准路径解析 ───────────────────────────────────────────
+    base_dir = Path(args.data_dir or args.workspace or Path.cwd()).resolve()
+
+    # ── .env 搜索链（支持 --workspace / --data-dir 参数）────────
+    # --data-dir 和 --workspace 都可触发 .env 加载（优先 --workspace）
+    _ws = Path(args.workspace) if args.workspace else None
+    if _ws is None and args.data_dir:
+        _ws = Path(args.data_dir)  # --data-dir 也用于 .env 加载
+    _extra = [_ws / ".env"] if _ws else []
+    _all_paths = _extra + [
+        Path.cwd() / ".env",
+        _script_dir[0] / ".env",
+        _script_dir[1] / ".env",
+        Path.home() / ".workbuddy" / ".env",
+    ]
+    for _p in _all_paths:
+        if _p.exists():
+            load_dotenv(_p)
+            print(f"[Env] 已加载: {_p}")
+            break
+    else:
+        print("[Env] 未找到 .env 文件，将依赖环境变量或命令行参数")
+    # ────────────────────────────────────────────────────────
+
+    # 读取 Notion 配置（load_dotenv 之后）
+    global NOTION_TOKEN, NOTION_DATABASE_ID, PARENT_PAGE_ID
+    NOTION_TOKEN = os.getenv("NOTION_API_TOKEN")
+    NOTION_DATABASE_ID = os.getenv("NOTION_DATABASE_ID")
+    PARENT_PAGE_ID = os.getenv("NOTION_PARENT_PAGE_ID")
+    HEADERS["Authorization"] = f"Bearer {NOTION_TOKEN}"
+
+    # 解析 input 路径
+    input_path = Path(args.input)
+    if not input_path.is_absolute():
+        input_path = base_dir / input_path
+
+    # 解析 output 路径
+    output_default = base_dir / "data" / "notion_mapping.json"
+    output_path = Path(args.output) if args.output else output_default
+    if not output_path.is_absolute():
+        output_path = base_dir / output_path
+
     # 加载论文数据
-    with open(args.input, "r", encoding="utf-8") as f:
+    with open(input_path, "r", encoding="utf-8") as f:
         raw_papers = json.load(f)
     papers = enrich_papers(raw_papers)  # 计算 recommendation 等衍生字段
     print(f"[Load] 加载 {len(papers)} 篇论文（已加工）")
@@ -247,10 +279,10 @@ def main():
     mapping = sync_papers(database_id, papers)
 
     # 输出映射文件（供 dashboard 使用）
-    os.makedirs(os.path.dirname(args.output) or ".", exist_ok=True)
-    with open(args.output, "w", encoding="utf-8") as f:
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(output_path, "w", encoding="utf-8") as f:
         json.dump(mapping, f, ensure_ascii=False, indent=2)
-    print(f"[File] 映射文件已保存: {args.output}")
+    print(f"[File] 映射文件已保存: {output_path}")
 
 
 if __name__ == "__main__":

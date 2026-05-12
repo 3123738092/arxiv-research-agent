@@ -116,6 +116,11 @@ def validate_citation_edges(edges):
     return valid, errors
 
 
+def validate_similarity_edges(edges):
+    """Validate similarity edges (same schema as citation edges: from, to, weight)."""
+    return validate_citation_edges(edges)
+
+
 def validate_coauthorship_edges(edges):
     errors = []
     valid = []
@@ -151,6 +156,10 @@ def validate_all(papers, authors, affiliations, edges):
     v_citations, e = validate_citation_edges(edges.get("citations", []))
     all_errors.extend(e)
 
+    # Also validate similarity edges if present (replaces citation graph)
+    v_similarity, e = validate_similarity_edges(edges.get("similarity", []))
+    all_errors.extend(e)
+
     v_coauthor, e = validate_coauthorship_edges(edges.get("coauthorship", []))
     all_errors.extend(e)
 
@@ -163,9 +172,9 @@ def validate_all(papers, authors, affiliations, edges):
         "affiliations": affiliations or [],
         "edges": {
             "citations": v_citations,
+            "similarity": v_similarity,
             "coauthorship": v_coauthor,
             "author_paper": v_ap,
-            "citations_external": edges.get("citations_external", []),
         },
     }
     return validated, all_errors

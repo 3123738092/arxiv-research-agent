@@ -26,7 +26,11 @@ MODEL_NAME = "all-MiniLM-L6-v2"
 
 def _get_data_dir(data_dir=None):
     if data_dir:
-        return Path(data_dir)
+        base = Path(data_dir)
+        # If data_dir is a workspace root (contains shared_data/ subdir), use that instead
+        if base.name != "shared_data" and (base / "shared_data").is_dir():
+            base = base / "shared_data"
+        return base
     return SHARED_DATA
 
 
@@ -170,32 +174,72 @@ def embed_text(text):
 # ---------------------------------------------------------------------------
 
 def compute_interest_scores(papers_index, embeddings, user_interest_text):
-    """Cosine similarity between user interest embedding and each paper.
+    """Hybrid score: 0.7 × embedding cosine similarity + 0.3 × BM25.
+
+    BM25 is implemented via TfidfVectorizer with sublinear_tf=True
+    (equivalent to Okapi BM25 standard formula).
 
     Returns:
         {arxiv_id: interest_score} 0–10 range.
         Empty dict if embeddings or interest text are unavailable.
     """
+    from sklearn.feature_extraction.text import TfidfVectorizer
+
     vecs, emb_index = embeddings
+    user_vec = embed_text(user_interest_text) if user_interest_text else None
 
-    if vecs.size == 0 or not user_interest_text:
+    if vecs.size == 0 and not user_vec:
         return {}
 
-    user_vec = embed_text(user_interest_text)
-    if user_vec is None:
-        return {}
+    # -- BM25: build corpus index from title + abstract --
+    bm25_scores = {}
+    if user_interest_text and papers_index:
+        corpus = []
+        aid_list = []
+        for aid, paper in papers_index.items():
+            text = (paper.get("title", "") + " " + paper.get("abstract", "")).strip()
+            corpus.append(text)
+            aid_list.append(aid)
 
-    dot = np.dot(vecs, user_vec)
-    norm_vecs = np.linalg.norm(vecs, axis=1)
-    norm_user = np.linalg.norm(user_vec)
-    denom = norm_vecs * norm_user
-    denom[denom == 0] = 1e-8
-    similarities = np.clip(dot / denom, 0, 1)
+        if corpus:
+            # sublinear_tf=True → Okapi BM25 equivalent
+            vectorizer = TfidfVectorizer(sublinear_tf=True, stop_words="english")
+            try:
+                tfidf_matrix = vectorizer.fit_transform(corpus)
+                query_vec = vectorizer.transform([user_interest_text])
+                # BM25 per doc: (tf * (k+1)) / (tf + k*(1-b+b*dl/avgdl))
+                # sklearn's sublinear_tf=True gives us log(1+tf) which is the
+                # first part of Okapi BM25; normalize L2 normalizes across docs
+                bm25_raw = query_vec.dot(tfidf_matrix.T).toarray().flatten()
+                # clip and scale to 0-10
+                bm25_max = bm25_raw.max()
+                if bm25_max > 0:
+                    bm25_raw = bm25_raw / bm25_max
+                bm25_scores = {aid: round(float(s) * 10, 2) for aid, s in zip(aid_list, bm25_raw)}
+            except Exception:
+                bm25_scores = {}
 
+    # -- Embedding cosine similarity --
+    emb_scores = {}
+    if user_vec is not None and vecs.size > 0:
+        dot = np.dot(vecs, user_vec)
+        norm_vecs = np.linalg.norm(vecs, axis=1)
+        norm_user = np.linalg.norm(user_vec)
+        denom = norm_vecs * norm_user
+        denom[denom == 0] = 1e-8
+        similarities = np.clip(dot / denom, 0, 1)
+        for aid, row_idx in emb_index.items():
+            if aid in papers_index and row_idx < len(similarities):
+                emb_scores[aid] = round(float(similarities[row_idx]) * 10, 2)
+
+    # -- Hybrid merge: 0.7 × embedding + 0.3 × BM25 --
     result = {}
-    for aid, row_idx in emb_index.items():
-        if aid in papers_index and row_idx < len(similarities):
-            result[aid] = round(float(similarities[row_idx] * 10), 2)
+    all_aids = set(emb_scores) | set(bm25_scores)
+    for aid in all_aids:
+        emb = emb_scores.get(aid, 0.0)
+        bm = bm25_scores.get(aid, 0.0)
+        result[aid] = round(0.7 * emb + 0.3 * bm, 2)
+
     return result
 
 
@@ -425,6 +469,7 @@ def save_ranked_papers(rankings, data_dir=None):
             aid = paper.get("arxiv_id", "")
             item = ranking_index.get(aid)
             if item:
+                paper["paper_id"] = f"arxiv:{aid}"
                 paper["relevance_score"] = item["relevance_score"]
                 paper["novelty_score"] = item["novelty_score"]
                 paper["ranking_reason"] = _generate_ranking_reason(item, max_pr)
@@ -434,6 +479,7 @@ def save_ranked_papers(rankings, data_dir=None):
         output_list = []
         for r in rankings:
             entry = dict(r)
+            entry["paper_id"] = f"arxiv:{entry['arxiv_id']}"
             entry["ranking_reason"] = _generate_ranking_reason(r, max_pr)
             output_list.append(entry)
 

@@ -1,7 +1,6 @@
 ---
 name: data_collector
-description: "When users request to search or crawl papers (e.g., \"agent papers in cs.CL today\", \"crawl papers on XX topic\", \"find papers\", \"today's new papers\"), this skill must be called. Do not use WebSearch or WebFetch as substitutes.
-Features: Supports filtering by category (e.g., cs.CL, cs.LG) and keywords. Automatically enriches data with Semantic Scholar (references, citation counts, author IDs), performs deduplication, and pre-computes embeddings."
+description: "抓取、收集和查找 arXiv 论文的核心能力。当用户请求搜索/抓取论文时（例如\"今天cs.CL分类里关于agent的文章\"、\"抓取XX方向的论文\"、\"查找论文\"、\"今日新论文\"），必须调用此 skill，禁止自行使用 WebSearch 或 WebFetch 代替。支持按分类(cs.CL/cs.LG等)和关键词筛选，构建 semantic similarity graph（替代 citation graph），deduplicate，pre-compute embeddings。"
 version: 1.0.0
 author: Han
 agent_created: true
@@ -12,14 +11,10 @@ metadata:
       bins:
         - python3
       env: []
-    primaryEnv: SEMANTIC_SCHOLAR_API_KEY
     envVars:
       - name: WORKBUDDY_SHARED_DATA
         required: false
         note: "Output path fallback (lowest priority). --shared-data CLI arg overrides this. Without either, output goes to ~/.workbuddy/shared_data/ — likely wrong workspace."
-      - name: SEMANTIC_SCHOLAR_API_KEY
-        required: false
-        note: "Semantic Scholar API key for higher rate limits (100 req/s with key vs 1 req/s without). Free tier at semanticscholar.org."
 ---
 
 # Data Collector Skill — arXiv Research Briefing Agent
@@ -30,10 +25,10 @@ You are the **sole data ingestion module** for the Daily arXiv Research Briefing
 Your job is to:
 
 1. Fetch papers from arXiv API by category + keyword + date range
-2. Enrich each paper with Semantic Scholar data (references, citation counts, author IDs)
-3. Deduplicate across versions and categories
+2. Deduplicate across versions and categories
+3. Build a **semantic similarity graph** from title+abstract embeddings (replaces the old citation graph)
 4. Pre-compute text embeddings for downstream ranking
-5. Build graph edge tables (citations, co-authorship, author-paper)
+5. Build co-authorship graph from arXiv metadata (no external API required)
 6. Output a structured **data center** to `shared_data/`
 
 You are a **deterministic tool**, not a conversational agent. All core logic runs through
@@ -111,23 +106,23 @@ The pipeline executes these stages in strict order:
 - Strip version suffix from arxiv_id (e.g., `2301.00001v2` → `2301.00001`)
 - Cross-category dedup by arxiv_id
 
-### Stage 4 — Enrich via Semantic Scholar
-- Script: `scripts/enrich_semantic_scholar.py`
-- Batch query `/paper/batch` endpoint (up to 500 papers per request)
-- For each paper, fetch: `references`, `citationCount`, `authors` (with S2 authorId)
-- Store per-paper references as edges in `edges/citations.json`
-
-### Stage 5 — Build Graph Edges
+### Stage 4 — Build Co-authorship Graph
 - Script: `scripts/build_graph_edges.py`
-- `edges/citations.json`: paper → paper citation edges
-- `edges/coauthorship.json`: author ↔ author collaboration edges (weighted by co-occurrence count)
+- Uses `authors_raw` from arXiv API (no external API needed)
+- `edges/coauthorship.json`: author ↔ author collaboration edges
 - `edges/author_paper.json`: author → paper bipartite edges
 
-### Stage 6 — Compute Embeddings
+### Stage 5 — Compute Embeddings
 - Script: `scripts/embed.py`
 - Model: `all-MiniLM-L6-v2` (384-dim, local, no API cost)
 - Encode `title + " " + abstract` for each paper
 - Output: `embeddings/paper_vecs.npy` (float32 binary) + `embeddings/index.json` (arxiv_id → row)
+
+### Stage 6 — Build Semantic Similarity Graph
+- Script: `scripts/build_similarity_graph.py`
+- Computes pairwise cosine similarity on title+abstract embeddings
+- Each paper connects to its top-K most similar peers (K=5, threshold=0.2)
+- Output: `edges/similarity.json`: `[{from, to, weight}, ...]`
 
 ### Stage 7 — Validate & Write
 - Script: `scripts/validate.py`
@@ -145,20 +140,17 @@ The pipeline executes these stages in strict order:
 ```
 shared_data/
 ├── manifest.json              # Run metadata: params, timings, source status, error log
-├── papers.json                # Fact table: [ { arxiv_id, title, abstract, citation_count,
-│                              #   embedding_row, author_ids[], affiliation_ids[], categories,
-│                              #   published_date, pdf_url, source, code_url } ]
-├── authors.json               # Dimension table: [ { author_id, name, s2_author_id,
-│                              #   affiliation_ids[], paper_count } ]
-├── affiliations.json          # Dimension table: [ { affiliation_id, name, country } ]
+├── papers.json                # Fact table: [ { arxiv_id, title, abstract,
+│                              #   authors_raw[], published_date, pdf_url,
+│                              #   categories, primary_category, source } ]
+├── authors.json               # Dimension table: [ { author_id, name, paper_ids[] } ]
 ├── edges/
-│   ├── citations.json         # [ { from: arxiv_id, to: arxiv_id } ]
-│   ├── coauthorship.json      # [ { author_a, author_b, weight, evidence_paper_ids[] } ]
-│   └── author_paper.json      # [ { author_id, paper_id } ]
-├── embeddings/
-│   ├── paper_vecs.npy         # float32, shape (N, 384)
-│   └── index.json             # { arxiv_id: row_number }
-└── raw_papers.json            # Legacy compatibility: flat list with all fields inlined
+│   ├── similarity.json        # [{from: arxiv_id, to: arxiv_id, weight: float}]
+│   ├── coauthorship.json      # [{author_a, author_b, weight}]
+│   └── author_paper.json      # [{author_id, paper_id}]
+└── embeddings/
+    ├── paper_vecs.npy         # float32, shape (N, 384)
+    └── index.json             # { arxiv_id: row_number }
 ```
 
 All JSON schemas are in `contracts/`. Downstream Skills MUST read from these files —
@@ -172,11 +164,10 @@ never call data_collector scripts directly.
    The LLM is only involved in query expansion and user-facing summaries.
 2. **Schema-first**: every output file conforms to a JSON Schema in `contracts/`. Pydantic
    validation runs before any write.
-3. **Rate limits**: arXiv API: ≥3s between requests. Semantic Scholar: 1 req/s without API key,
-   100 req/s with key. Use `tenacity` exponential backoff on 429/503 responses.
+3. **Rate limits**: arXiv API: ≥3s between requests. Use `tenacity` exponential backoff on 429/503 responses.
 4. **Idempotent writes**: output files are fully overwritten each run.
-5. **No side effects**: this skill only writes to `shared_data/` and reads from APIs. It does
-   not call other Skills.
+5. **No side effects**: this skill only writes to `shared_data/` and reads from arXiv API. It does
+   not call other Skills or external services (no S2 required).
 
 ---
 
@@ -185,11 +176,7 @@ never call data_collector scripts directly.
 | Scenario | Behavior |
 |----------|----------|
 | arXiv API returns empty | Auto-backtrack up to `backtrack_days` days; if still empty, write empty papers.json and flag in manifest |
-| arXiv API rate-limited (503) | Exponential backoff via tenacity, max 5 retries |
-| Semantic Scholar API down | Skip enrichment, write papers without citation_count/references, flag in manifest.errors |
-| Semantic Scholar paper not found | Leave citation_count=null, references=[], flag as `s2_not_found` in manifest |
-| Pydantic validation fails | Abort write, log validation errors to stderr, return error in manifest |
-| Embedding model not installed | Skip embedding stage, set `embeddings/enabled: false` in manifest |
+| Embedding model not installed | Skip embedding stage, set `embeddings/enabled: false` in manifest; similarity graph stage still runs |
 
 ---
 
@@ -266,7 +253,7 @@ the agent should read them **on demand** when it needs specific information:
 # 检查当前 Python 环境是否满足所有依赖
 python -c "
 import sys, subprocess
-pkgs = ['arxiv', 'tenacity', 'pydantic', 'sentence-transformers', 'requests', 'numpy']
+pkgs = ['arxiv', 'tenacity', 'pydantic', 'sentence-transformers', 'numpy']
 missing = [p for p in pkgs if subprocess.run([sys.executable, '-c', f'import {p}'], capture_output=True).returncode != 0]
 if missing:
     print(f'[依赖检查] 缺少以下包，请先安装：pip install {\" \".join(missing)}')
@@ -287,11 +274,10 @@ python /path/to/skills/data_collector/scripts/pipeline.py \
 | `arxiv` | arXiv API 抓取 | 无法运行 |
 | `tenacity` | API 重试（指数退避） | 遇到 503 时直接失败 |
 | `pydantic` | 输出 Schema 校验 | 跳过校验，直接写入 |
-| `sentence-transformers` | 论文向量编码 | Embedding 阶段跳过，novelty 排序失效 |
-| `requests` | HTTP 请求 | 无法调用 S2 API |
-| `numpy` | 向量存储 | 无法写入 .npy 向量文件 |
+| `sentence-transformers` | 论文向量编码（Embedding similarity graph 依赖） | Embedding 阶段跳过，paper_ranker 降级为纯 BM25 |
+| `numpy` | 向量存储和运算 | 无法写入 .npy 向量文件 |
 
-> ⚠️ **首次使用前必须检查依赖**。缺失任一包都可能引发 ImportError 或静默跳过关键阶段。如遇 Embedding 跳过，检查是否装了 `sentence-transformers`。
+> ⚠️ **首次使用前必须检查依赖**。缺失任一包都可能引发 ImportError 或静默跳过关键阶段。如遇 Embedding 跳过，paper_ranker 的 interest_score 会降级为纯 BM25（仍可正常工作）。
 
 **Shared data output path — priority order:**
 
@@ -303,8 +289,3 @@ python /path/to/skills/data_collector/scripts/pipeline.py \
 
 > ⚠️ **Silent data loss warning**: Without either `--shared-data` or `WORKBUDDY_SHARED_DATA`,
 > output goes to `~/.workbuddy/shared_data/` — likely not your workspace. Always specify explicitly.
-
-**Optional: Semantic Scholar API key** (100 req/s vs 1 req/s without):
-```bash
-export SEMANTIC_SCHOLAR_API_KEY=your_key_here
-```

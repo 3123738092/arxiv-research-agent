@@ -3,13 +3,40 @@
 No cross-skill imports. Each skill owns its data loading.
 """
 import json
+import os
 from pathlib import Path
 from typing import Optional, Tuple
 
 import numpy as np
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-SHARED_DATA = PROJECT_ROOT / "shared_data"
+
+
+def _find_workspace_shared_data():
+    """Search upward from PROJECT_ROOT for a workspace's shared_data/.
+
+    Looks for: ~/.workbuddy/<workspace>/shared_data/
+    Returns the most recently modified workspace shared_data if found.
+    """
+    workbuddy_root = PROJECT_ROOT  # ~/.workbuddy/
+    if not workbuddy_root.exists():
+        return PROJECT_ROOT / "shared_data"
+    candidates = []
+    for sub in workbuddy_root.iterdir():
+        candidate = sub / "shared_data"
+        if candidate.is_dir():
+            candidates.append((sub.stat().st_mtime, candidate))
+    if candidates:
+        candidates.sort(key=lambda x: x[0], reverse=True)
+        return candidates[0][1]
+    return PROJECT_ROOT / "shared_data"
+
+
+# Priority: WORKBUDDY_SHARED_DATA env > auto-detected workspace > ~/.workbuddy/shared_data
+SHARED_DATA = Path(os.environ.get(
+    "WORKBUDDY_SHARED_DATA",
+    str(_find_workspace_shared_data())
+))
 
 
 class SkillInputMissingError(FileNotFoundError):

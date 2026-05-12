@@ -1,6 +1,7 @@
 ---
 name: papers-analysis-visualizer
-description: Build a research dashboard and visual analytics summary from structured paper data, focusing on paper recommendation, keyword network visualization and topic trend exploration.
+description: >
+  Build a research dashboard and visual analytics summary from structured paper data, focusing on paper recommendation, keyword network visualization and topic trend exploration.
 author: RuipengYu
 version: 1.0.0
 
@@ -289,7 +290,8 @@ Output file: `data/notion_mapping.json` — `paper_id → notion_url` 映射，�
 
 **CLI**：
 ```bash
-python scripts/sync_to_notion.py --input data/input.json --output data/notion_mapping.json --db-title "LLM Agent 论文"
+# --workspace 触发 .env 加载（--data-dir 也能加载 .env）
+python scripts/sync_to_notion.py --input data/input.json --workspace /path/to/workspace --output data/notion_mapping.json --db-title "LLM Agent 论文"
 ```
 
 ### Tool B: `build_dashboard_html.py` — 交互式 Topic Dashboard
@@ -302,7 +304,7 @@ python scripts/sync_to_notion.py --input data/input.json --output data/notion_ma
 
 **CLI**：
 ```bash
-python scripts/build_dashboard_html.py --input data/input.json --output output/dashboard.html
+python scripts/build_dashboard_html.py --input data/input.json --data-dir /path/to/workspace --output output/dashboard.html
 ```
 
 ### Arrangement Rules

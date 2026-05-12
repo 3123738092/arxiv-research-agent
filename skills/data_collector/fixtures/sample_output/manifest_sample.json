@@ -8,14 +8,13 @@
   },
   "source_status": {
     "arxiv": "ok",
-    "semantic_scholar": "ok",
+    "similarity_graph": "ok",
     "embeddings": "ok"
   },
   "counts": {
     "fetched": 10,
     "after_dedup": 8,
-    "with_s2_data": 6,
-    "citation_edges": 42,
+    "similarity_edges": 35,
     "coauthorship_edges": 15,
     "authors": 24
   },

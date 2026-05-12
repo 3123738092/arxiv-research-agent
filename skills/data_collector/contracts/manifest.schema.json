@@ -12,7 +12,7 @@
       "type": "object",
       "properties": {
         "arxiv": { "type": "string", "enum": ["ok", "empty", "error"] },
-        "semantic_scholar": { "type": "string", "enum": ["ok", "partial", "error", "skipped"] },
+        "similarity_graph": { "type": "string", "enum": ["ok", "partial", "error", "skipped"] },
         "embeddings": { "type": "string", "enum": ["ok", "skipped", "error"] }
       }
     },
@@ -21,8 +21,7 @@
       "properties": {
         "fetched": { "type": "integer", "minimum": 0 },
         "after_dedup": { "type": "integer", "minimum": 0 },
-        "with_s2_data": { "type": "integer", "minimum": 0 },
-        "citation_edges": { "type": "integer", "minimum": 0 },
+        "similarity_edges": { "type": "integer", "minimum": 0 },
         "coauthorship_edges": { "type": "integer", "minimum": 0 },
         "authors": { "type": "integer", "minimum": 0 }
       }

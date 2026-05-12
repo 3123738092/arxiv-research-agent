@@ -9,14 +9,6 @@
 | Retry on | 429, 503 |
 | Backoff | 4s → 8s → 16s → 32s → 60s (max 5 attempts) |
 
-## Semantic Scholar API
-
-| Parameter | Free (no key) | Free (with key) |
-|-----------|--------------|-----------------|
-| Rate limit | 1 req/s | 100 req/s |
-| Batch size | 500/req | 500/req |
-| Key signup | N/A | semanticscholar.org/product/api |
-
 ## Sentence Transformers (Local)
 
 | Parameter | Value |
@@ -26,7 +18,15 @@
 | Memory | ~90 MB |
 | Speed | ~1,000 sentences/sec (CPU) |
 
+## Similarity Graph (Local)
+
+| Parameter | Value |
+|-----------|-------|
+| Top-K neighbors | 5 |
+| Cosine threshold | 0.2 |
+| Builder script | `scripts/build_similarity_graph.py` |
+
 ## Tenacity Usage
 
-All API calls use `@retry` decorator with exponential backoff.
-See `scripts/fetch_arxiv.py` and `scripts/enrich_semantic_scholar.py`.
+arXiv API calls use `@retry` decorator with exponential backoff.
+See `scripts/fetch_arxiv.py`.

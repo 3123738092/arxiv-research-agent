@@ -92,14 +92,14 @@ def filter_internal_citations(edges, arxiv_id_set):
 def build_all_edges(papers, authors_list, citations_edges):
     """Build all edge tables for the data center.
 
-    If authors_list is empty (S2 unavailable), derives authors from
-    papers' authors_raw field as fallback.
+    If `authors_list` is empty, derives authors from each paper's
+    `authors_raw` field — the standard path now that the pipeline relies
+    solely on arXiv as the upstream source.
 
     Returns:
         dict with keys: citations, citations_external, coauthorship,
                         author_paper, authors_list, papers
     """
-    # Fallback: derive authors from arXiv authors_raw when S2 has no data
     if not authors_list:
         authors_list, papers = derive_authors_from_raw(papers)
 

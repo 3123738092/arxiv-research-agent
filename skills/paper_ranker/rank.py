@@ -278,11 +278,12 @@ def _embedding_centroid_distances(embeddings):
 
 
 def compute_novelty_scores(papers_index, citation_graph, embeddings=None):
-    """Inverse citation impact — less-cited papers are more novel.
+    """Novelty as embedding distance from today's batch centroid.
 
-    When citation_count is null (S2 hasn't indexed fresh papers), falls
-    back to embedding distance from centroid — papers with unusual topics
-    score higher for novelty.
+    Papers whose embedding is farthest from the centroid of the day's batch
+    score higher — they represent topically divergent / outlier research
+    directions. When `citation_count` is present on a paper (rare for fresh
+    arxiv submissions), inverse-citation impact + out-degree are folded in.
 
     Returns:
         {arxiv_id: novelty_score} 0–10.

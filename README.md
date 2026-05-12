@@ -37,8 +37,8 @@ Skill 3 has a **two-step host-LLM gate** between `prepare` and `finalize`: the h
 
 | # | Skill | Directory | Responsibility |
 |---|-------|-----------|----------------|
-| 1 | data_collector | `skills/data_collector/` | Fetch arXiv, enrich with Semantic Scholar, embed (MiniLM), build star-schema graphs |
-| 2 | paper_ranker | `skills/paper_ranker/` | PageRank on citation graph + interest/novelty scoring |
+| 1 | data_collector | `skills/data_collector/` | Fetch arXiv, embed (MiniLM), build semantic similarity graph + coauthorship graph |
+| 2 | paper_ranker | `skills/paper_ranker/` | PageRank on similarity graph + interest/novelty scoring |
 | 3 | paper_summarizer | `skills/paper_summarizer/` | Prepare host-LLM request → summarize in-context → finalize/normalize |
 | 4 | briefing_report | `skills/briefing_report/` | Render Markdown daily briefing |
 | 5 | papers-analysis-visualizer | `skills/papers-analysis-visualizer/` | HTML dashboard + optional Notion sync |
@@ -107,9 +107,9 @@ All inter-skill communication goes through `shared_data/`. See `shared/loader.py
 
 | Producer | File | Shape |
 |----------|------|-------|
-| Skill 1 | `papers.json` | `[{arxiv_id, title, abstract, citation_count, embedding_row, …}]` |
-| Skill 1 | `authors.json` | `[{author_id, name, s2_author_id}]` |
-| Skill 1 | `edges/citations.json` | `[{from, to}]` |
+| Skill 1 | `papers.json` | `[{arxiv_id, title, abstract, embedding_row, …}]` |
+| Skill 1 | `authors.json` | `[{author_id, name}]` |
+| Skill 1 | `edges/similarity.json` | `[{from, to, weight}]` (cosine top-K from MiniLM embeddings) |
 | Skill 1 | `edges/coauthorship.json` | `[{author_a, author_b, weight}]` |
 | Skill 1 | `embeddings/paper_vecs.npy` | float32 (N, 384) |
 | Skill 1 | `manifest.json` | `{run_id, params, counts, errors, warnings}` |

@@ -48,8 +48,8 @@ Python scripts — do NOT use LLM for data processing.
 
 | Field | Type | Source | Description |
 |-------|------|--------|-------------|
-| `papers.json` | File | Skill 1 | Paper fact table with arxiv_id, title, abstract, citation_count, embedding_row |
-| `edges/similarity.json` | File | Skill 1 | Semantic similarity edge table (top-K cosine neighbors, threshold=0.2): `[{from, to, weight}]`. Falls back to `edges/citations.json` (S2 citation edges) if not present. |
+| `papers.json` | File | Skill 1 | Paper fact table with arxiv_id, title, abstract, embedding_row |
+| `edges/similarity.json` | File | Skill 1 | Semantic similarity edge table (top-K cosine neighbors, threshold=0.2): `[{from, to, weight}]` |
 | `embeddings/paper_vecs.npy` + `index.json` | Files | Skill 1 | Pre-computed text embeddings (384-dim, all-MiniLM-L6-v2) |
 
 ## Optional Inputs
@@ -66,14 +66,10 @@ Python scripts — do NOT use LLM for data processing.
 
 ### 1. PageRank on Similarity Graph
 
-**Primary**: Build an undirected graph from `edges/similarity.json` (semantic similarity edges: each paper connects to its top-K=5 most similar peers with cosine similarity > 0.2).
+Build an undirected graph from `edges/similarity.json` (semantic similarity edges: each paper connects to its top-K=5 most similar peers with cosine similarity > 0.2).
 Run NetworkX PageRank (α=0.85) to compute each paper's **structural influence** within the local paper set.
 
-**Fallback**: If `edges/similarity.json` is absent, `load_citation_graph()` falls back to `edges/citations.json` (Semantic Scholar citation edges) if available.
-
-**SNA significance**: PageRank identifies "authoritative" papers — those cited by many others
-(real graph) or topically central papers (similarity graph). This captures the *network effect*
-that pure text similarity misses.
+**SNA significance**: PageRank identifies topically central papers in the similarity graph — those at the hub of the day's research themes. This captures the *network effect* that pure pairwise text similarity misses.
 
 ### 2. Interest Similarity (Hybrid: Embedding + BM25)
 
@@ -86,14 +82,12 @@ that pure text similarity misses.
 
 ### 3. Novelty Scoring
 
-Novelty rewards papers that are fresh, less-cited, and/or topically divergent:
+Novelty rewards papers that are topically divergent from the day's batch:
 
-- **When `citation_count` is available (S2 indexed)**: 
-  `novelty = 10 / (1 + citation_count * 0.1) + min(out_degree * 0.5, 3)`  
-- **When `citation_count` is null (same-day fresh papers)**: 
-  Fall back to **embedding distance from centroid**. Papers whose embedding is
-  farthest from today's batch centroid are considered more novel (outlier
-  / divergent research directions).
+- **Embedding distance from centroid**: Papers whose embedding is farthest from
+  today's batch centroid are considered more novel (outlier / divergent research
+  directions). Scaled 0–10.
+- **Fallback when embeddings are unavailable**: novelty = 0.
 
 ### 4. Final Combined Score
 
@@ -139,7 +133,6 @@ Papers are sorted by `final_score` descending and assigned integer ranks.
     "pdf_url": "...",
     "categories": ["..."],
     "primary_category": "cs.CL",
-    "citation_count": 15,
     "relevance_score": 5.1,
     "novelty_score": 6.2,
     "ranking_reason": "Above-average network centrality; strong interest match; moderate novelty."

@@ -25,8 +25,8 @@ Daily arXiv ingestion, ranking, host-LLM summarization, dashboard visualization,
 
 | # | Skill | Directory | Purpose |
 |---|-------|-----------|---------|
-| 1 | **data_collector** | `skills/data_collector/` | Fetch arXiv papers, enrich with Semantic Scholar, embed (MiniLM), build star-schema graphs → `shared_data/` |
-| 2 | **paper_ranker** | `skills/paper_ranker/` | PageRank on citation graph + interest/novelty scoring → `rankings.json`, `ranked_papers.json` |
+| 1 | **data_collector** | `skills/data_collector/` | Fetch arXiv papers, embed (MiniLM), build semantic similarity graph + coauthorship graph → `shared_data/` |
+| 2 | **paper_ranker** | `skills/paper_ranker/` | PageRank on similarity graph + interest/novelty scoring → `rankings.json`, `ranked_papers.json` |
 | 3 | **paper_summarizer** | `skills/paper_summarizer/` | Two-step host-LLM flow: prepare request → host LLM summarizes in-context → finalize/normalize |
 | 4 | **briefing_report** | `skills/briefing_report/` | Generate Markdown daily briefing with top papers and one-line summaries |
 | 5 | **papers-analysis-visualizer** | `skills/papers-analysis-visualizer/` | Build interactive HTML dashboard (top papers, keywords, history); optional Notion sync |
@@ -94,10 +94,10 @@ All inter-skill communication goes through `shared_data/`. Each skill owns its `
 
 | File | Type | Contents |
 |------|------|----------|
-| `papers.json` | Fact | `[{arxiv_id, title, abstract, citation_count, embedding_row, ...}]` |
-| `authors.json` | Dimension | `[{author_id, name, s2_author_id, ...}]` |
+| `papers.json` | Fact | `[{arxiv_id, title, abstract, embedding_row, ...}]` |
+| `authors.json` | Dimension | `[{author_id, name, ...}]` |
 | `affiliations.json` | Dimension | `[{affiliation_id, name, country}]` |
-| `edges/citations.json` | Edge | `[{from, to}]` |
+| `edges/similarity.json` | Edge | `[{from, to, weight}]` (cosine top-K from MiniLM embeddings) |
 | `edges/coauthorship.json` | Edge | `[{author_a, author_b, weight}]` |
 | `edges/author_paper.json` | Edge | `[{author_id, paper_id}]` |
 | `embeddings/paper_vecs.npy` | Binary | float32 (N, 384) |

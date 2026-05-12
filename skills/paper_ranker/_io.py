@@ -69,35 +69,23 @@ def load_papers(data_dir=None) -> Dict[str, dict]:
 
 
 def load_citation_graph(data_dir=None):
-    """Load citation or similarity graph from shared_data/.
+    """Load the semantic similarity graph from shared_data/edges/similarity.json.
 
-    Tries edges/citations.json first (S2 citation graph), then falls back to
-    edges/similarity.json (semantic similarity graph). Both use the same
-    {from, to} edge schema.
+    Each edge {from, to, weight} represents a top-K cosine neighbor pair from
+    MiniLM embeddings (threshold=0.2). Returns an empty DiGraph if the file
+    is missing or empty.
     """
     import networkx as nx
 
-    # Try citation graph first (S2-based)
-    citations_path = _resolve("edges/citations.json", data_dir)
-    if citations_path.exists():
-        edges = _load_json("edges/citations.json", data_dir)
-        if edges:
-            g = nx.DiGraph()
-            for edge in edges:
-                g.add_edge(edge["from"], edge["to"])
-            return g
-
-    # Fall back to similarity graph (embedding-based)
     sim_path = _resolve("edges/similarity.json", data_dir)
     if sim_path.exists():
         edges = _load_json("edges/similarity.json", data_dir)
         if edges:
             g = nx.DiGraph()
             for edge in edges:
-                g.add_edge(edge["from"], edge["to"])
+                g.add_edge(edge["from"], edge["to"], weight=edge.get("weight", 1.0))
             return g
 
-    # Empty graph as last resort
     return nx.DiGraph()
 
 

@@ -12,9 +12,21 @@ import json
 import sys
 from pathlib import Path
 
+# --- path self-healing: walk up to find the parent of skills/ and add to sys.path ---
+_current = Path(__file__).resolve().parent
+for _ in range(10):
+    if (_current / "skills").is_dir():
+        if str(_current) not in sys.path:
+            sys.path.insert(0, str(_current))
+        break
+    if _current.parent == _current:
+        break
+    _current = _current.parent
+# ---------------------------------------------------------------------------
+
 import numpy as np
 
-from ._io import (
+from skills.paper_ranker._io import (
     load_papers, load_citation_graph, load_embeddings, load_raw_papers,
     SkillInputMissingError, SHARED_DATA,
 )

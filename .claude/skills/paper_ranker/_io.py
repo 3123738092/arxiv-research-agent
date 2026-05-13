@@ -9,34 +9,36 @@ from typing import Dict, Tuple
 
 import numpy as np
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+_FILE = Path(__file__).resolve()
 
 
-def _find_workspace_shared_data():
-    """Search upward from PROJECT_ROOT for a workspace's shared_data/.
+def _find_shared_data():
+    """Walk up from this file to find the nearest shared_data/ directory.
 
-    Looks for: ~/.workbuddy/<workspace>/shared_data/
-    Returns the most recently modified workspace shared_data if found.
+    Priority order:
+      1. WORKBUDDY_SHARED_DATA env var
+      2. Walk up from this file until shared_data/ is found
+      3. Fallback to <repo-root>/shared_data/
     """
-    workbuddy_root = PROJECT_ROOT  # ~/.workbuddy/
-    if not workbuddy_root.exists():
-        return PROJECT_ROOT / "shared_data"
-    candidates = []
-    for sub in workbuddy_root.iterdir():
-        candidate = sub / "shared_data"
+    env = os.environ.get("WORKBUDDY_SHARED_DATA")
+    if env:
+        return Path(env)
+
+    # Walk up from the file's location
+    current = _FILE.parent
+    for _ in range(10):
+        candidate = current / "shared_data"
         if candidate.is_dir():
-            candidates.append((sub.stat().st_mtime, candidate))
-    if candidates:
-        candidates.sort(key=lambda x: x[0], reverse=True)
-        return candidates[0][1]
-    return PROJECT_ROOT / "shared_data"
+            return candidate
+        if current.parent == current:
+            break
+        current = current.parent
+
+    # Last resort
+    return _FILE.parents[3] / "shared_data"
 
 
-# Priority: WORKBUDDY_SHARED_DATA env > auto-detected workspace > ~/.workbuddy/shared_data
-SHARED_DATA = Path(os.environ.get(
-    "WORKBUDDY_SHARED_DATA",
-    str(_find_workspace_shared_data())
-))
+SHARED_DATA = _find_shared_data()
 
 
 class SkillInputMissingError(FileNotFoundError):

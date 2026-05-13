@@ -78,13 +78,12 @@ This skill does **not**:
 
 ## User Setup（notion集成前置配置）
 
-**每次启动本 skill 时，主动询问用户是否需要 Notion 同步。** 用对应语言向用户提问，等他回复。
+**每次启动本 skill 时，主动询问用户是否需要 Notion 同步。** 使用 Claude Code 的交互式提问方式让用户选择，等其回复，格式如下：
 
 <div data-language="zh">
 🔗 是否需要将这批论文同步到你的 Notion 论文库？（可以长期积累、随时检索）
-
-- 如果 **需要**：请先完成 3 步配置 →
-- 如果 **不需要**：直接生成 Dashboard，跳过 Notion
+- Yes (如果 **需要**：请先完成 3 步配置) →
+- No (如果 **不需要**：直接生成 Dashboard，跳过 Notion)
 
 ---
 

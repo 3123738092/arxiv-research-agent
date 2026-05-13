@@ -6,40 +6,50 @@ import hashlib
 from pathlib import Path
 from datetime import datetime, timedelta
 
-# 路径解析函数 — 支持运行时动态修改
+
+def _find_project_root():
+    """向上遍历找到项目根（有 .claude/ 或 CLAUDE.md 的目录）。"""
+    cur = Path(__file__).resolve().parent
+    for _ in range(10):
+        if (cur / ".claude").is_dir() or (cur / "CLAUDE.md").is_file():
+            return cur
+        if cur.parent == cur:
+            break
+        cur = cur.parent
+    # 兜底：假设 skills/ 在项目根下两层
+    return Path(__file__).resolve().parents[4]
+
+
+PROJECT_ROOT = _find_project_root()
+
+
 def resolve_shared_data(override=None):
     """Resolve shared_data path.
 
-    Priority: CLI arg > WORKBUDDY_SHARED_DATA env > ~/.workbuddy/shared_data (fallback).
+    Priority: CLI arg > WORKBUDDY_SHARED_DATA env > <project_root>/shared_data.
+    Auto-creates the directory if it does not exist.
     """
     if override:
-        return Path(override)
-    env = os.environ.get("WORKBUDDY_SHARED_DATA")
-    if env:
-        return Path(env)
-    return Path(__file__).resolve().parents[3] / "shared_data"
+        path = Path(override)
+    elif os.environ.get("WORKBUDDY_SHARED_DATA"):
+        path = Path(os.environ["WORKBUDDY_SHARED_DATA"])
+    else:
+        path = PROJECT_ROOT / "shared_data"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
 
 
 def set_shared_data(path):
-    """Set the module-global SHARED_DATA and LAST_FETCH_FILE at runtime.
-
-    Can be called multiple times to switch output directory mid-process.
-    """
+    """Set the module-global SHARED_DATA and LAST_FETCH_FILE at runtime."""
     global SHARED_DATA, LAST_FETCH_FILE
     SHARED_DATA = Path(path)
+    SHARED_DATA.mkdir(parents=True, exist_ok=True)
     LAST_FETCH_FILE = SHARED_DATA / "last_fetch.json"
 
 
-# 模块级全局变量 — 首次导入时解析（之后可通过 set_shared_data 动态修改）
-_WORKBUDDY_SHARED = os.environ.get("WORKBUDDY_SHARED_DATA")
-if _WORKBUDDY_SHARED:
-    _INITIAL = Path(_WORKBUDDY_SHARED)
-else:
-    _INITIAL = Path(__file__).resolve().parents[3] / "shared_data"
-
+# 模块初始化
+_INITIAL = resolve_shared_data()
 set_shared_data(_INITIAL)
-
-CONTRACTS = Path(__file__).resolve().parents[1] / "contracts"
 
 
 def load_json(path):
@@ -64,7 +74,7 @@ def today_str():
 
 def is_weekend(d=None):
     d = d or datetime.now()
-    return d.weekday() >= 5  # Saturday=5, Sunday=6
+    return d.weekday() >= 5
 
 
 def weekend_window(d=None):
@@ -77,5 +87,3 @@ def weekend_window(d=None):
 
 def short_hash(s):
     return hashlib.md5(s.encode()).hexdigest()[:8]
-
-

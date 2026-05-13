@@ -10,50 +10,19 @@ Config JSON keys:
 Note: This script uses path self-healing — it works from any working directory.
 """
 
-# --- 依赖自检 + 自动安装（在任何业务 import 之前执行）--------
 import sys
-import subprocess
 from pathlib import Path
 
-_PKGS = ["arxiv", "tenacity", "pydantic", "sentence-transformers", "requests", "numpy"]
-
-def _check_deps():
-    missing = []
-    for pkg in _PKGS:
-        try:
-            __import__(pkg.replace("-", "_"))
-        except ImportError:
-            missing.append(pkg)
-    if missing:
-        print(f"[依赖检查] 发现缺失包: {' '.join(missing)}，正在自动安装...")
-        for pkg in missing:
-            r = subprocess.run(
-                [sys.executable, "-m", "pip", "install", pkg, "-q"],
-                capture_output=True, text=True
-            )
-            if r.returncode == 0:
-                print(f"  ✓ {pkg} 安装成功")
-            else:
-                print(f"  ✗ {pkg} 安装失败: {r.stderr.strip()}")
-                sys.exit(1)
-        print("[依赖检查] 所有依赖已就绪")
-    else:
-        print("[依赖检查] 所有依赖已满足")
-
-_check_deps()
-del _check_deps, _PKGS  # 不污染全局命名空间（sys/subprocess/Path 后续仍需使用）
-# -------------------------------------------------------------
-
-# --- 路径自修复：确保无论从哪里调用都能正确导入 ---
-
+# --- 路径自修复：向上找到 skills/ 的父目录，适配任意平台/深度 ---
 _current = Path(__file__).resolve()
-# scripts/ → data_collector/ → skills/ → arxiv-research-agent/ → skills/ → 根目录（向上4层）
-# ~/.workbuddy/skills/arxiv-research-agent/skills/data_collector/scripts/pipeline.py
-# 正确根目录：~/.workbuddy/skills/arxiv-research-agent/
-# 导入路径是 skills.data_collector，所以需要添加父目录到 sys.path
-_skills_root = _current.parents[3]
-if str(_skills_root) not in sys.path:
-    sys.path.insert(0, str(_skills_root))
+for _ in range(10):
+    if (_current / "skills" / "data_collector").is_dir():
+        if str(_current) not in sys.path:
+            sys.path.insert(0, str(_current))
+        break
+    if _current.parent == _current:
+        break
+    _current = _current.parent
 # ---------------------------------------------------------
 
 import argparse

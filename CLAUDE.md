@@ -16,6 +16,18 @@ pipeline:
 
 Daily arXiv ingestion, ranking, host-LLM summarization, dashboard visualization, and report generation.
 
+## Setup（agent 自动处理，用户无需操作）
+
+首次执行任何 skill 前，agent 检查 Python 环境是否满足 `requirements.txt`：
+
+```bash
+python -c "import arxiv, tenacity, pydantic, sentence_transformers, requests, numpy, networkx, jinja2, dotenv"
+```
+
+- 全部导入成功 → 直接使用现有环境
+- 有 ImportError → 自动执行 `pip install -r requirements.txt -q`，告知用户"正在配置环境，约 1 分钟..."
+- 之后不再重复检查
+
 > **Entry point for natural-language invocation:** [`SKILL.md`](./SKILL.md) at repo root.
 > The host LLM (Claude Code / WorkBuddy / OpenClaw) matches the user's request against
 > the root `SKILL.md` frontmatter, then follows its 7-step recipe to drive the 5 sub-skills.

@@ -11,11 +11,16 @@ import argparse
 import requests
 from dotenv import load_dotenv
 
+# 确定项目根目录（无论从哪里调用都正确）
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)
+
 # 添加 scripts 目录到路径，方便导入同级模块
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, SCRIPT_DIR)
 from compute_analytics import enrich_papers
 
-load_dotenv()
+# 固定从项目根目录加载 .env，不依赖 CWD
+load_dotenv(os.path.join(PROJECT_ROOT, ".env"))
 
 NOTION_TOKEN = os.getenv("NOTION_API_TOKEN")
 NOTION_DATABASE_ID = os.getenv("NOTION_DATABASE_ID")      # optional：已有数据库则直接用
@@ -208,7 +213,7 @@ def sync_papers(database_id, papers):
 def main():
     parser = argparse.ArgumentParser(description="同步论文数据到 Notion 数据库")
     parser.add_argument("--input", required=True, help="输入 JSON 文件路径")
-    parser.add_argument("--output", default="data/notion_mapping.json",
+    parser.add_argument("--output", default=os.path.join(PROJECT_ROOT, "data", "notion_mapping.json"),
                         help="输出 paper_id→notion_url 映射文件路径")
     parser.add_argument("--db-title", default=None,
                         help="Notion 数据库标题（不传则默认为「论文库」）")

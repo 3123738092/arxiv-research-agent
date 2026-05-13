@@ -5,7 +5,11 @@ import json
 import argparse
 from pathlib import Path
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# 确定项目根目录（无论从哪里调用都正确）
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)
+
+sys.path.insert(0, SCRIPT_DIR)
 from compute_analytics import enrich_papers, compute_keyword_frequencies, compute_cooccurrence, compute_overview
 
 from jinja2 import Environment, FileSystemLoader
@@ -34,9 +38,9 @@ def load_optional_json(path: str) -> dict:
 def main():
     parser = argparse.ArgumentParser(description="生成 Topic Exploration Dashboard HTML")
     parser.add_argument("--input", required=True, help="论文 JSON 文件路径")
-    parser.add_argument("--output", default="output/dashboard.html", help="输出 HTML 路径")
+    parser.add_argument("--output", default=os.path.join(PROJECT_ROOT, "output", "dashboard.html"), help="输出 HTML 路径")
     parser.add_argument("--history", default=None, help="可选：历史趋势数据 JSON")
-    parser.add_argument("--notion-mapping", default="data/notion_mapping.json",
+    parser.add_argument("--notion-mapping", default=os.path.join(PROJECT_ROOT, "data", "notion_mapping.json"),
                         help="paper_id → notion_url 映射文件（sync_to_notion 产出的）")
     args = parser.parse_args()
 
@@ -62,7 +66,7 @@ def main():
     print(f"[Data] Notion 映射: {len(notion_map)} 条, 历史趋势: {'有' if trends else '无'}")
 
     # 渲染模板
-    template_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "templates")
+    template_dir = os.path.join(PROJECT_ROOT, "templates")
     env = Environment(loader=FileSystemLoader(template_dir))
     template = env.get_template("dashboard.html")
 

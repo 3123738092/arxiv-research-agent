@@ -19,8 +19,8 @@ from ._io import (
     SkillInputMissingError, SHARED_DATA,
 )
 
-DEFAULT_ALPHA = 0.4  # weight for PageRank
-DEFAULT_BETA = 0.6   # weight for interest (novelty = 1 - alpha - beta)
+DEFAULT_ALPHA = 0.35  # weight for PageRank
+DEFAULT_BETA = 0.45   # weight for interest (novelty = 1 - alpha - beta = 0.20)
 MODEL_NAME = "all-MiniLM-L6-v2"
 
 

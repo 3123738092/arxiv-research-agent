@@ -1,5 +1,5 @@
 ---
-name: paper_summarizer
+name: paper-summarizer
 description: "Extract one-line summary, key contributions, methods and keywords for the top-N ranked arXiv papers. The host LLM running this Agent performs the summarization itself in-context — this skill prepares the request and validates the output. Skill 3 of 5 in the arXiv Research Briefing Agent."
 version: 0.3.0
 author: 成员 C
